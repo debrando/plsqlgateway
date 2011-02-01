@@ -65,7 +65,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 	throws ServletException
 	{
 		ctx= servletConfig.getServletContext();
-        config= Config.getConfigSet("plsqlgateway");
+        config= DADContextListener.getConfig(ctx);
         intconfig= config.getEntity("plsqlgateway.internal");
 	}
 
@@ -84,22 +84,32 @@ public class PLSQLGatewayServlet extends HttpServlet
         String dadPath;
         String pathInfo;
         
-        String embedded= intconfig.getParameter("embedded-dad");
-        
-		if (intconfig.getBooleanParameter("multiple-dad"))
+		if (intconfig.getBooleanParameter("embedded"))
+		{
+			dadPath= request.getContextPath()+request.getServletPath();
+			
+	        if (intconfig.getBooleanParameter("multiple-dad"))
+			{
+				String pi= request.getPathInfo();
+				int fi= pi.indexOf('/',1);
+				dadPath+= pi.substring(0,fi);
+				dadName= pi.substring(1,fi);
+				pathInfo= pi.substring(fi);
+			}
+	        else
+	        {
+				dadName= "embedded";
+				pathInfo= request.getPathInfo();
+	        }
+		}
+		else
+        if (intconfig.getBooleanParameter("multiple-dad"))
 		{
 			String pi= request.getPathInfo();
 			int fi= pi.indexOf('/',1);
 			dadPath= request.getContextPath()+pi.substring(0,fi);
 			dadName= pi.substring(1,fi);
 			pathInfo= pi.substring(fi);
-		}
-		else
-		if (embedded!=null)
-		{
-			dadPath= request.getContextPath()+request.getServletPath();
-			pathInfo= request.getPathInfo();
-			dadName= embedded;
 		}
 		else
 		{

@@ -23,7 +23,7 @@
 	    </license>
     </licenses>
     <scm>
-	    <url>http://code.google.com/p/plsqlgateway/source/browse/#svn%2Ftrunk%2Fplsqlgateway</url>
+	    <url>http://code.google.com/p/plsqlgateway/source/browse/trunk/</url>
         <connection>scm:svn:http://plsqlgateway.googlecode.com/svn/trunk/</connection>
         <developerConnection>scm:svn:https://plsqlgateway.googlecode.com/svn/trunk/</developerConnection>
     </scm>

@@ -29,7 +29,7 @@ public class DADContextListener implements ServletContextListener
 	public void contextDestroyed(ServletContextEvent event)
 	{
 		ServletContext ctx= event.getServletContext();
-		Config config= Config.getConfigSet("plsqlgateway");
+		Config config= getConfig(ctx);
 		EntityConfig internal= config.getEntity("plsqlgateway.internal"); 
 
 		if (internal.getBooleanParameter("multiple-dad"))
@@ -40,9 +40,6 @@ public class DADContextListener implements ServletContextListener
 				destroyDAD(dadName, ctx);
 		}
 		else
-		if (internal.getParameter("embedded-dad")!=null)
-			destroyDAD(internal.getParameter("embedded-dad"), ctx);
-		else
 			destroyDAD(ctx.getServletContextName(), ctx);
 
 		config.stop();		
@@ -52,10 +49,10 @@ public class DADContextListener implements ServletContextListener
 	public void contextInitialized(ServletContextEvent event)
 	{
 		ServletContext ctx= event.getServletContext();
+		Config config= getConfig(ctx);
 		
 	    try 
 	    {
-			Config config= getConfig(ctx);
 
 			EntityConfig internal= config.getEntity("plsqlgateway.internal"); 
 			
@@ -66,9 +63,6 @@ public class DADContextListener implements ServletContextListener
 				for (String dadName: dads)
 					initializeDAD(dadName, config, ctx);
 			}
-			else
-		    if (internal.getParameter("embedded-dad")!=null)
-				initializeDAD(internal.getParameter("embedded-dad"), config, ctx);
 			else
 				initializeDAD(ctx.getServletContextName(), config, ctx);
 		}
@@ -145,23 +139,9 @@ public class DADContextListener implements ServletContextListener
 		  ds.setConnectionProperties(dbconfig.getPropertiesParameter("connection-properties"));
 	  }	
 	
-	private Config getConfig(ServletContext ctx)
-	  throws Exception
+	public static Config getConfig(ServletContext ctx)
 	{
-		Config config= Config.getConfigSet("plsqlgateway");
-		
-		if (config==null)
-		{
-		    FileConfigInitializer fci= new FileConfigInitializer();
-		    fci.setConfigSourceManager(new FileSourceManager(ctx.getInitParameter("entity-config-dir")));
-		    fci.setStartChangeControl(true);
-		    fci.setChangeControlInterval(10000);
-		    fci.setStartGarbageCollector(false);
-		    config= new Config("plsqlgateway");
-			config.init(fci);
-		}
-		
-		return config;
+		return Config.getConfigSet(ctx.getInitParameter("com.google.code.eforceconfig.CONFIGSET_NAME"));
 	}
 
 }

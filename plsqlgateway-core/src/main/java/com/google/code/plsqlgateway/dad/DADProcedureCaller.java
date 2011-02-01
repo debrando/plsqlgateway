@@ -358,8 +358,6 @@ public class DADProcedureCaller
 	   if (!dadConfig.getBooleanParameter("describe-procedure"))
 		   return EMPTY_DESCRIBE_MAP;
 		   
-       logger.fatal("describeProcedure: "+calledProc);
-		
        String[] parts= calledProc.split("\\.");
        
        ResultSet rs= null;

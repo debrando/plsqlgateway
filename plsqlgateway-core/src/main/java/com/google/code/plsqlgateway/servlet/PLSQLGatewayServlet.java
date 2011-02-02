@@ -117,6 +117,9 @@ public class PLSQLGatewayServlet extends HttpServlet
 			pathInfo= request.getPathInfo();
 			dadName= dadPath.substring(1);
 		}
+		
+		if (logger.isDebugEnabled())
+			logger.debug("dadPath: "+dadPath+" pathInfo: "+pathInfo+" dadName:"+dadName);
 		        
 		DataSource ds= getDADDataSource(dadName);
 		
@@ -350,7 +353,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 		if (pparts.length==3)
 	        pkg= pparts[0]+"."+pparts[1];			
 		
-		OracleCallableStatement stmt= (OracleCallableStatement) conn.prepareCall(intconfig.getSQLstmt("AUTHORIZE").replaceFirst("#pkg#", pkg));
+		OracleCallableStatement stmt= (OracleCallableStatement) conn.prepareCall(intconfig.getSQLstmt("AUTHORIZE").replaceFirst("#pkg#", pkg.replaceFirst("^!", "")));
 
 		stmt.setInt(1, cgienv[0].length);
 	    setVcArr(stmt, 2, cgienv[0]);

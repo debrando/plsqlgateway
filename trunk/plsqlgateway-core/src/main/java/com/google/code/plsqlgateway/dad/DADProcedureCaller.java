@@ -348,6 +348,9 @@ public class DADProcedureCaller
 				   (afterProcedure!=null ? 
 						   afterProcedure : "null"));
 
+		if (logger.isDebugEnabled())
+			logger.debug("sqlStmt: "+sqlStmt);
+
 		return sqlStmt;
 	}
 	

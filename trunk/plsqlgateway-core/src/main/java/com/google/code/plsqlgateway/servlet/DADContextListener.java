@@ -1,7 +1,6 @@
 package com.google.code.plsqlgateway.servlet;
 
 import java.lang.reflect.Constructor;
-import java.sql.SQLException;
 import java.util.ArrayList;
 
 import javax.naming.InitialContext;
@@ -17,8 +16,6 @@ import oracle.jdbc.pool.OracleDataSource;
 
 import com.google.code.eforceconfig.Config;
 import com.google.code.eforceconfig.EntityConfig;
-import com.google.code.eforceconfig.initializers.FileConfigInitializer;
-import com.google.code.eforceconfig.sources.managers.FileSourceManager;
 
 public class DADContextListener implements ServletContextListener
 {

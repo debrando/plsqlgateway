@@ -1,29 +1,22 @@
 package com.google.code.plsqlgateway.servlet.upload;
 
-import com.google.code.eforceconfig.Config;
-import com.google.code.eforceconfig.EntityConfig;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
-
 import java.io.UnsupportedEncodingException;
-
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 import oracle.jdbc.OracleCallableStatement;
 import oracle.jdbc.OracleConnection;
 import oracle.jdbc.OraclePreparedStatement;
 import oracle.jdbc.OracleTypes;
-
-import oracle.jdbc.internal.OracleResultSet;
-
 import oracle.sql.BLOB;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.log4j.Logger;
+
+import com.google.code.eforceconfig.EntityConfig;
 
 public class OracleFileItem implements FileItem {
    

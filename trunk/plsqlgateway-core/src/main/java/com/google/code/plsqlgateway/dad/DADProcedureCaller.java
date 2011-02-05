@@ -360,7 +360,13 @@ public class DADProcedureCaller
 	private Map<String,Integer> describeProcedure(String calledProc, Connection conn)
 	throws Exception
 	{			
-	   // TODO: cache procedure description
+	   /* TODO: cache procedure description (IMUO, it is a bad idea to describe procedures at all, 
+	    * there is no benefit in defining procedures like apex wwv_flow.accept that need a description
+	    * to be called because there is no way for the gateway to deduce it from the request)
+	    * 
+	    * Avoid this kind of procs, instead use flexible parameter passing! (http://server:port/pls/dad/!pkg.proc)
+	    * 
+	    */
 		
 	   if (!dadConfig.getBooleanParameter("describe-procedure"))
 		   return EMPTY_DESCRIBE_MAP;

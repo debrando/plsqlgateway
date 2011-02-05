@@ -14,8 +14,8 @@ import org.apache.log4j.Logger;
 
 import oracle.jdbc.pool.OracleDataSource;
 
-import com.google.code.eforceconfig.Config;
 import com.google.code.eforceconfig.EntityConfig;
+import com.google.code.plsqlgateway.config.Configuration;
 
 public class DADContextListener implements ServletContextListener
 {
@@ -26,36 +26,34 @@ public class DADContextListener implements ServletContextListener
 	public void contextDestroyed(ServletContextEvent event)
 	{
 		ServletContext ctx= event.getServletContext();
-		Config config= getConfig(ctx);
-		EntityConfig internal= config.getEntity("plsqlgateway.internal"); 
+		Configuration config= Configuration.getInstance(ctx);
+		EntityConfig general= config.getGeneral();
 
-		if (internal.getBooleanParameter("multiple-dad"))
+		if (general.getBooleanParameter("multiple-dad"))
 		{
-			ArrayList<String> dads= internal.getListParameter("dads");
+			ArrayList<String> dads= general.getListParameter("dads");
             
 			for (String dadName: dads)
 				destroyDAD(dadName, ctx);
 		}
 		else
 			destroyDAD(ctx.getServletContextName(), ctx);
-
-		config.stop();		
 	}
 	
 	@SuppressWarnings("unchecked")
 	public void contextInitialized(ServletContextEvent event)
 	{
 		ServletContext ctx= event.getServletContext();
-		Config config= getConfig(ctx);
+		Configuration config= Configuration.getInstance(ctx);
 		
 	    try 
 	    {
 
-			EntityConfig internal= config.getEntity("plsqlgateway.internal"); 
+			EntityConfig general= config.getGeneral();
 			
-			if (internal.getBooleanParameter("multiple-dad"))
+			if (general.getBooleanParameter("multiple-dad"))
 			{
-				ArrayList<String> dads= internal.getListParameter("dads");
+				ArrayList<String> dads= general.getListParameter("dads");
                 
 				for (String dadName: dads)
 					initializeDAD(dadName, config, ctx);
@@ -71,12 +69,12 @@ public class DADContextListener implements ServletContextListener
 	}
 
 	@SuppressWarnings("unchecked")
-	private static void initializeDAD(String dadName, Config config, ServletContext ctx)
+	private static void initializeDAD(String dadName, Configuration config, ServletContext ctx)
 	throws Exception
 	{
 		logger.info("init DAD: "+dadName);
         
-		EntityConfig dadConfig= config.getEntity("plsqlgateway."+dadName);
+		EntityConfig dadConfig= config.getDADConfig(dadName);
 		String dewrapperClassName= dadConfig.getParameter("jndi-connection-dewrapper");
 		String jndiDataSourceName= dadConfig.getParameter("jndi-datasource");
 		DataSource ds= null;
@@ -115,8 +113,8 @@ public class DADContextListener implements ServletContextListener
 	}
 
 	private static void configureDS(EntityConfig dbconfig, OracleDataSource ds)
-	  throws Exception
-	  {
+	throws Exception
+	{
 		  ds.setUser(dbconfig.getParameter("user"));
 		  ds.setPassword(dbconfig.getParameter("password"));
 		  
@@ -134,11 +132,6 @@ public class DADContextListener implements ServletContextListener
 		  ds.setExplicitCachingEnabled(dbconfig.getBooleanParameter("explicit-caching"));
 		  ds.setConnectionCachingEnabled(false);
 		  ds.setConnectionProperties(dbconfig.getPropertiesParameter("connection-properties"));
-	  }	
+	}	
 	
-	public static Config getConfig(ServletContext ctx)
-	{
-		return Config.getConfigSet(ctx.getInitParameter("com.google.code.eforceconfig.CONFIGSET_NAME"));
-	}
-
 }

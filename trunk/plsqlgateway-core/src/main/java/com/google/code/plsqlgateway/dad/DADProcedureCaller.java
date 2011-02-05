@@ -3,6 +3,7 @@ package com.google.code.plsqlgateway.dad;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Types;
 import java.util.ArrayList;
@@ -31,6 +32,7 @@ public class DADProcedureCaller
 	private static Logger logger= Logger.getLogger(DADProcedureCaller.class);
     
 	private EntityConfig intconfig;
+	private EntityConfig genconfig;
     private boolean isdocument;
     private String[] lines;
     private HttpServletRequest request;
@@ -44,7 +46,7 @@ public class DADProcedureCaller
     private String[][] cgienv;
     
 	@SuppressWarnings("unchecked")
-	public DADProcedureCaller(String pathInfo, Map parameterMap, HttpServletRequest request, EntityConfig dadConfig, String[][] cgienv, EntityConfig intconfig)
+	public DADProcedureCaller(String pathInfo, Map parameterMap, HttpServletRequest request, EntityConfig dadConfig, String[][] cgienv, EntityConfig intconfig, EntityConfig genconfig)
 	{
 		this.parameterMap= parameterMap;
 		this.request= request;
@@ -52,6 +54,7 @@ public class DADProcedureCaller
 		this.pathInfo= pathInfo;
 		this.cgienv= cgienv;
 		this.intconfig= intconfig;
+		this.genconfig= genconfig;
 	}
 	
 	private void setVcArr(OracleCallableStatement stmt, int parameterIndex, String[] arrayData)
@@ -304,7 +307,7 @@ public class DADProcedureCaller
 			procedure= sqlInjectionIdentifier(pathInfo.substring(1));	
 			calledProc= procedure;
 			
-			Map<String,Integer> parameterTypes= describeProcedure(calledProc,conn);
+			Map<String,Integer> parameterTypes= describeProcedure(calledProc.toUpperCase(),conn);
 
 			String pars= "";
 			Set<Map.Entry<String,Object>> s= parameterMap.entrySet();
@@ -357,33 +360,26 @@ public class DADProcedureCaller
 	private Map<String,Integer> describeProcedure(String calledProc, Connection conn)
 	throws Exception
 	{			
+	   // TODO: cache procedure description
 		
 	   if (!dadConfig.getBooleanParameter("describe-procedure"))
 		   return EMPTY_DESCRIBE_MAP;
 		   
        String[] parts= calledProc.split("\\.");
        
-       ResultSet rs= null;
-       
        if (parts.length==1)
        {
     	   // procedure
     	   // procedure synonym
     	   
-		   String proc= parts[0].toUpperCase();
-    	   rs= conn.getMetaData().getProcedures("", "", proc);
+		   String proc= parts[0];
     	   
-    	   if (!rs.next())
-    	   {
-    		   rs.close();
-    		   proc= translateSynonym(conn,parts);
-    		   return describeProcedure(proc, conn);
-    	   }
+    	   if (existsProcedure(null, null, proc, conn))
+        	   return getProcedureColumns(null, null, proc, conn);
     	   else
     	   {
-    		   rs.close();
-    		   
-        	   rs= conn.getMetaData().getProcedureColumns("", "", proc, "%");
+    		   proc= translateSynonym(conn,parts);
+    		   return describeProcedure(proc, conn);
     	   }
        }
        else
@@ -393,34 +389,23 @@ public class DADProcedureCaller
     	   // schema.procedure
     	   // (package synonym).procedure
     	   // schema.(procedure synonym)
+		   String schema= parts[0];
+		   String pkg= parts[0];
+		   
+		   String proc= parts[1];
     	   
-    	   rs= conn.getMetaData().getProcedures(parts[0].toUpperCase(), "", parts[1].toUpperCase());
     	   
-    	   if (rs.next())
-    	   {
-    		   rs.close();
-    		   
-        	   // package.procedure
-        	   rs= conn.getMetaData().getProcedureColumns(parts[0].toUpperCase(), "", parts[1].toUpperCase(), "%");
-    	   }
+    	   // package.procedure
+    	   if (existsProcedure(null, pkg, proc, conn))
+        	   return getProcedureColumns(null, pkg, proc, conn);
     	   else
        	   {
-    		   rs.close();
-    		   
-        	   rs= conn.getMetaData().getProcedures("", parts[0].toUpperCase(), parts[1].toUpperCase());
-
-        	   if (rs.next())
-        	   {
-        		   rs.close();
-        		   
-       		       // schema.procedure
-        	       rs= conn.getMetaData().getProcedureColumns("", parts[0].toUpperCase(), parts[1].toUpperCase(), "%");
-        	   }
+        	   // schema.procedure
+        	   if (existsProcedure(schema, null, proc, conn))
+            	   return getProcedureColumns(schema, null, proc, conn);
         	   else
         	   {
-        		   rs.close();
-        		   
-        		   String proc= translateSynonym(conn,parts);
+        		   proc= translateSynonym(conn,parts);
         		   return describeProcedure(proc, conn);
         	   }
        	   }
@@ -429,36 +414,115 @@ public class DADProcedureCaller
        else
        if (parts.length==3)
        {
-		       // schema.package.procedure
-		       // schema.(package synonym).procedure
+		   // schema.package.procedure
+		   // schema.(package synonym).procedure
+		   String schema= parts[0];
+		   String pkg= parts[1];
+		   String proc= parts[2];
     	   
-    	   rs= conn.getMetaData().getProcedures(parts[1].toUpperCase(), parts[0].toUpperCase(), parts[2].toUpperCase());
-    	   
-    	   if (rs.next())
-    	   {
-    		   rs.close();
-    	   
-   		       // schema.package.procedure
-      	       rs= conn.getMetaData().getProcedureColumns(parts[1].toUpperCase(), parts[0].toUpperCase(), parts[2].toUpperCase(), "%");
-    	   }
+		   // schema.package.procedure
+    	   if (existsProcedure(schema, pkg, proc, conn))
+        	   return getProcedureColumns(schema, pkg, proc, conn);
     	   else
     	   {
-    		   rs.close();
-
-    		   String proc= translateSynonym(conn,parts);
+    		   proc= translateSynonym(conn,parts);
     		   return describeProcedure(proc, conn);        		   
     	   }
-    	   
        }
-       
-       Map<String,Integer> pt= new HashMap<String,Integer>();
-       
-       while (rs.next())
-           pt.put(rs.getString("COLUMN_NAME"), rs.getInt("DATA_TYPE"));
-    	   
-       return pt;
+       else
+    	   throw new RuntimeException("Bad procedure '"+calledProc+"'");
 	}
 	
+	private boolean existsProcedure(String schema, String pkg, String proc, Connection conn) 
+	throws Exception
+	{
+		PreparedStatement stmt= null;
+		
+		if (schema==null&&pkg==null)
+		{
+           stmt= conn.prepareStatement(intconfig.getSQLstmt("EXISTS_PROC"));
+           stmt.setString(1, proc);
+		}
+		else
+		if (schema==null)
+		{
+           stmt= conn.prepareStatement(intconfig.getSQLstmt("EXISTS_PKG_PROC"));
+           stmt.setString(1, proc);
+           stmt.setString(2, pkg);
+		}
+		else
+		if (pkg==null)
+		{
+           stmt= conn.prepareStatement(intconfig.getSQLstmt("EXISTS_SCHEMA_PROC"));
+           stmt.setString(1, proc);
+           stmt.setString(2, schema);
+		}
+		else
+		{
+           stmt= conn.prepareStatement(intconfig.getSQLstmt("EXISTS_SCHEMA_PKG_PROC"));
+           stmt.setString(1, proc);
+           stmt.setString(2, pkg);
+           stmt.setString(3, schema);
+		}
+		
+		ResultSet rs= stmt.executeQuery();
+		
+		boolean exists= rs.next();
+		
+		rs.close();
+		stmt.close();
+		
+		return exists;
+	}
+
+	private Map<String,Integer> getProcedureColumns(String schema, String pkg, String proc, Connection conn) 
+	throws Exception
+	{
+		PreparedStatement stmt= null;
+		
+		if (schema==null&&pkg==null)
+		{
+           stmt= conn.prepareStatement(intconfig.getSQLstmt("PROC_COLUMNS"));
+           stmt.setString(1, proc);
+		}
+		else
+		if (schema==null)
+		{
+           stmt= conn.prepareStatement(intconfig.getSQLstmt("PKG_PROC_COLUMNS"));
+           stmt.setString(1, proc);
+           stmt.setString(2, pkg);
+		}
+		else
+		if (pkg==null)
+		{
+           stmt= conn.prepareStatement(intconfig.getSQLstmt("SCHEMA_PROC_COLUMNS"));
+           stmt.setString(1, proc);
+           stmt.setString(2, schema);
+		}
+		else
+		{
+           stmt= conn.prepareStatement(intconfig.getSQLstmt("SCHEMA_PKG_PROC_COLUMNS"));
+           stmt.setString(1, proc);
+           stmt.setString(2, pkg);
+           stmt.setString(3, schema);
+		}
+		
+		ResultSet rs= stmt.executeQuery();
+		Map<String,Integer> descriptor= new HashMap<String, Integer>();
+		
+		while (rs.next())
+		{
+		  String dataType= rs.getString(2);
+		  descriptor.put(rs.getString(1), 
+				         ("PL/SQL TABLE".equals(dataType) ? Types.OTHER : Types.VARCHAR));
+		}
+		
+		rs.close();
+		stmt.close();
+		
+		return descriptor;
+	}
+
 	private String[] toupper(String[] vals)
 	{
 		String[] ret= new String[vals.length];
@@ -485,7 +549,9 @@ public class DADProcedureCaller
 		
 		stmt.execute();
 		
-		String retval= stmt.getString(2);  
+		String retval= stmt.getString(2); 
+		
+		stmt.close();
 		
 	    return retval;
 	}
@@ -546,7 +612,7 @@ public class DADProcedureCaller
 	throws SQLInjectionException
 	{
 		String tomatch= identifier.toLowerCase();
-		if (tomatch.matches(intconfig.getParameter("sql-injection-regexp")))
+		if (tomatch.matches(genconfig.getParameter("sql-injection-regexp")))
 		{
 		   ArrayList<String> exclusionList= dadConfig.getListParameter("exclusion-list");
 		   

@@ -24,9 +24,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.sql.DataSource;
 
-import com.google.code.plsqlgateway.dad.DADProcedureCaller;
-import com.google.code.plsqlgateway.servlet.upload.OracleFileItem;
-import com.google.code.plsqlgateway.servlet.upload.OracleFileItemFactory;
 import oracle.jdbc.OracleCallableStatement;
 import oracle.jdbc.OracleConnection;
 import oracle.jdbc.OracleTypes;
@@ -39,8 +36,12 @@ import org.apache.commons.fileupload.servlet.ServletRequestContext;
 import org.apache.log4j.Logger;
 
 import sun.misc.BASE64Decoder;
-import com.google.code.eforceconfig.Config;
+
 import com.google.code.eforceconfig.EntityConfig;
+import com.google.code.plsqlgateway.config.Configuration;
+import com.google.code.plsqlgateway.dad.DADProcedureCaller;
+import com.google.code.plsqlgateway.servlet.upload.OracleFileItem;
+import com.google.code.plsqlgateway.servlet.upload.OracleFileItemFactory;
 
 /**
  * Servlet implementation class PLSQLGatewayServlet
@@ -51,8 +52,9 @@ public class PLSQLGatewayServlet extends HttpServlet
 	private static final Logger logger= Logger.getLogger(PLSQLGatewayServlet.class);
 
 	private ServletContext ctx;
-    private Config config;
+    private Configuration config;
     private EntityConfig intconfig;
+    private EntityConfig genconfig;
     
     /**
      * Default constructor. 
@@ -65,8 +67,9 @@ public class PLSQLGatewayServlet extends HttpServlet
 	throws ServletException
 	{
 		ctx= servletConfig.getServletContext();
-        config= DADContextListener.getConfig(ctx);
-        intconfig= config.getEntity("plsqlgateway.internal");
+		config= Configuration.getInstance(ctx);
+        intconfig= config.getInternal();
+        genconfig= config.getGeneral();
 	}
 
 	/**
@@ -84,11 +87,11 @@ public class PLSQLGatewayServlet extends HttpServlet
         String dadPath;
         String pathInfo;
         
-		if (intconfig.getBooleanParameter("embedded"))
+		if (genconfig.getBooleanParameter("embedded"))
 		{
 			dadPath= request.getContextPath()+request.getServletPath();
 			
-	        if (intconfig.getBooleanParameter("multiple-dad"))
+	        if (genconfig.getBooleanParameter("multiple-dad"))
 			{
 				String pi= request.getPathInfo();
 				int fi= pi.indexOf('/',1);
@@ -103,7 +106,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 	        }
 		}
 		else
-        if (intconfig.getBooleanParameter("multiple-dad"))
+        if (genconfig.getBooleanParameter("multiple-dad"))
 		{
 			String pi= request.getPathInfo();
 			int fi= pi.indexOf('/',1);
@@ -119,7 +122,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 		}
 		
 		if (logger.isDebugEnabled())
-			logger.debug("dadPath: "+dadPath+" pathInfo: "+pathInfo+" dadName:"+dadName);
+			logger.debug("dadPath: "+dadPath+" pathInfo: "+pathInfo+" dadName: "+dadName);
 		        
 		DataSource ds= getDADDataSource(dadName);
 		
@@ -129,7 +132,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 			return;
 		}
 		
-		EntityConfig dadConfig= config.getEntity("plsqlgateway."+dadName);
+		EntityConfig dadConfig= config.getDADConfig(dadName);
 		
 		if (pathInfo.equals("/"))
 		{
@@ -180,7 +183,8 @@ public class PLSQLGatewayServlet extends HttpServlet
 					                                          request,
 					                                          dadConfig,
 					                                          cgienv,
-					                                          intconfig);
+					                                          intconfig,
+					                                          genconfig);
 			
 			caller.call(conn);
 			

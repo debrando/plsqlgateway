@@ -1,0 +1,38 @@
+* my ~/.m2/settings.xml
+{{{
+<settings>
+  <profiles>
+           <profile>
+             <id>mydb1</id>
+             <properties>
+                     <databaseUrl>jdbc:oracle:thin:@host:1521:mydb1</databaseUrl>
+                     <databaseUser>xxxxx</databaseUser>
+                     <databasePassword>xxxxxx</databasePassword>
+             </properties>
+           </profile>
+           <profile>
+             <id>mydb2</id>
+             <properties>
+                     <databaseUrl>jdbc:oracle:thin:@host:1521:mydb1</databaseUrl>
+                     <databaseUser>xxxxx</databaseUser>
+                     <databasePassword>xxxxxx</databasePassword>
+             </properties>
+           </profile>
+  </profiles>  
+  <pluginGroups>
+    <pluginGroup>com.google.code.plsqlmaven</pluginGroup>
+  </pluginGroups>
+</settings>
+}}}
+
+
+
+$ mvn archetype:generate -DarchetypeGroupId=com.google.code.plsqlmaven -DarchetypeArtifactId=plsql-package-archetype -DarchetypeVersion=1.0-SNAPSHOT -DartifactId=dummy -DgroupId=org.myorg
+
+
+$ cd dummy
+
+
+$ mvn -Pmydb1 compile
+
+$ mvn help:describe -Dplugin=plsql

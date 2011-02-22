@@ -27,7 +27,7 @@
 
 
 {{{
-$ mvn archetype:generate -DarchetypeGroupId=com.google.code.plsqlmaven -DarchetypeArtifactId=plsql-package-archetype -DarchetypeVersion=1.0-SNAPSHOT -DartifactId=dummy -DgroupId=org.myorg
+$ mvn archetype:generate -DarchetypeGroupId=com.google.code.plsqlmaven -DarchetypeArtifactId=plsql-package-archetype -DarchetypeVersion=1.0 -DartifactId=dummy -DgroupId=org.myorg
 
 $ cd dummy
 

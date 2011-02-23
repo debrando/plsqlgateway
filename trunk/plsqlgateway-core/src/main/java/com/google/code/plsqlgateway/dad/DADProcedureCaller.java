@@ -118,25 +118,28 @@ public class DADProcedureCaller
         
 		try
 		{
-	       stmt.execute();
+	        stmt.execute();
+
+		    long after= System.currentTimeMillis();
+		    
+	        if (dadConfig.getBooleanParameter("timed-statistics"))
+	        	logger.fatal((after-before)+"ms: "+request.getPathInfo());
+		    
+	    	int retcode= stmt.getInt(retcodeidx);
+	    	
+	    	if (retcode==1)
+	    		isdocument= true;
 		}
 		catch (Exception ex)
 		{
 			dumpCgiEnv(cgienv);
 			throw ex;
 		}
-
-	    long after= System.currentTimeMillis();
-	    
-        if (dadConfig.getBooleanParameter("timed-statistics"))
-        	logger.fatal((after-before)+"ms: "+request.getPathInfo());
-	    
-    	int retcode= stmt.getInt(retcodeidx);
-    	
-    	if (retcode==1)
-    		isdocument= true;
-
-    	stmt.close();
+        finally
+        {
+        	stmt.close();
+        }
+        
 	}
 	
 	public int fetch(Connection conn)

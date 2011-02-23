@@ -589,10 +589,20 @@ public class PLSQLGatewayServlet extends HttpServlet
     private void closeConnection(Connection conn, EntityConfig dadConfig)
     throws SQLException
     {
-    	 if (dadConfig.getBooleanParameter("reset-packages"))
-    		 resetPackages(conn);
-    	 
-         conn.close();
+    	try
+    	{
+	    	 if (dadConfig.getBooleanParameter("reset-packages"))
+	    		 resetPackages(conn);
+    	}
+    	catch (SQLException ex)
+    	{
+    		logger.error("resetting package states",ex);
+    		throw ex;
+    	}
+    	finally
+    	{
+           conn.close();
+    	}
     }
 
 	private void resetPackages(Connection conn)

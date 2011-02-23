@@ -600,5 +600,6 @@ public class PLSQLGatewayServlet extends HttpServlet
 	{
         CallableStatement stmt= conn.prepareCall(intconfig.getSQLstmt("RESET_PACKAGES"));
         stmt.execute();
+        stmt.close();
 	}
 }

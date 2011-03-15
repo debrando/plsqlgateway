@@ -37,6 +37,9 @@ public class DADContextListener implements ServletContextListener
 				destroyDAD(dadName, ctx);
 		}
 		else
+		if (general.getBooleanParameter("embedded"))
+			destroyDAD("embedded", ctx);
+		else
 			destroyDAD(ctx.getServletContextName(), ctx);
 	}
 	
@@ -58,6 +61,9 @@ public class DADContextListener implements ServletContextListener
 				for (String dadName: dads)
 					initializeDAD(dadName, config, ctx);
 			}
+			else
+			if (general.getBooleanParameter("embedded"))
+			    initializeDAD("embedded", config, ctx);
 			else
 				initializeDAD(ctx.getServletContextName(), config, ctx);
 		}

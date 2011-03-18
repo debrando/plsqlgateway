@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<entity xmlns="http://code.google.com/p/eforceconfig/wiki/XMLSchema" name="plsqlgateway.plsqlgateway">
+	<parameters>
+		<parameter name="user" value="plsqlgateway" />
+		<parameter name="password" value="plsqlgateway" />
+		<parameter name="port" value="1521" />
+		<parameter name="host" value="localhost" />
+		<parameter name="sid" value="xe" />
+		<!--  parameter name="jndi-datasource" value="xe" / -->
+		<!--  parameter name="jndi-connection-dewrapper" value="com.example.JbossDewrapper" / -->
+		<!--  parameter name="reset-packages" value="false" / -->
+		<!-- <parameter name="url">
+		<![CDATA[jdbc:oracle:thin:@(DESCRIPTION=
+  (ADDRESS=(PROTOCOL=TCP)(HOST=cluster_alias)
+    (PORT=1521))
+    (CONNECT_DATA=(SERVICE_NAME=service_name)))]]>
+		</parameter> -->
+		<parameter name="implicit-caching" value="false" />
+		<parameter name="explicit-caching" value="false" />
+		<parameter name="x-forwarded-for" value="true" />
+		<parameter name="connection-properties" type="table">
+			<value name="defaultRowPrefetch" value="10" />
+		</parameter>
+		<parameter name="exclusion-list" type="list">
+		   <value value="sys\..*"/>
+		   <value value="dbms_.*"/>
+		   <value value="utl_.*"/>
+		   <value value="owa_.*"/>
+		   <value value="owa\..*"/>
+		   <value value="htp\..*"/>
+		   <value value="htf\..*"/>
+		</parameter>
+		<parameter name="default-page" value="home"/>
+		<parameter name="document-path" value="docs"/>
+		<parameter name="document-table-name" value="gw_upload"/>
+		<!-- allowed values: id, name -->
+		<parameter name="document-upload-mode" value="id"/>
+		<parameter name="document-upload-seq" value="seq_uploaded_document"/>
+	</parameters>
+</entity>

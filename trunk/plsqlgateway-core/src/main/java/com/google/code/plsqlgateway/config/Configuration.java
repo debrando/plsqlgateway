@@ -1,7 +1,5 @@
 package com.google.code.plsqlgateway.config;
 
-import java.util.List;
-
 import javax.servlet.ServletContext;
 
 import com.google.code.eforceconfig.Config;
@@ -18,51 +16,51 @@ public class Configuration
 	
     private Configuration(ServletContext ctx) 
     {
-    	try
-    	{
-	        ClassPathConfigInitializer cci= new ClassPathConfigInitializer();
-	        cci.setConfigSourceManager(new ClassPathSourceManager(this.getClass().getClassLoader(),"com.google.code.plsqlgateway.config"));
-	        internal= new Config();
-	        internal.init(cci);
-	        
-	        webapp= Config.getConfigSet(ctx.getInitParameter("com.google.code.eforceconfig.CONFIGSET_NAME"));
-    	}
-    	catch (Exception e)
-    	{
-    		throw new RuntimeException(e);
-    	}
+	    	try
+	    	{
+		        ClassPathConfigInitializer cci= new ClassPathConfigInitializer();
+		        cci.setConfigSourceManager(new ClassPathSourceManager(this.getClass().getClassLoader(),"com.google.code.plsqlgateway.config"));
+		        internal= new Config();
+		        internal.init(cci);
+		        
+		        webapp= Config.getConfigSet(ctx.getInitParameter("com.google.code.eforceconfig.CONFIGSET_NAME"));
+	    	}
+	    	catch (Exception e)
+	    	{
+	    		throw new RuntimeException(e);
+	    	}
     }
 
     protected void finalize() 
     throws Throwable 
     {
-    	internal.stop();
+	    	internal.stop();
     }
     
     public EntityConfig getInternal()
     {
-    	return internal.getEntity("internal");
+	    	return internal.getEntity("internal");
     }
     
     public EntityConfig getDADConfig(String dadName)
     {
-    	return webapp.getEntity("plsqlgateway."+dadName);
+	    	return webapp.getEntity("plsqlgateway."+dadName);
     }
     
     public EntityConfig getGeneral()
     {
-    	return webapp.getEntity("plsqlgateway.general");
+	    	return webapp.getEntity("plsqlgateway.general");
     }
     
     public synchronized static Configuration getInstance(ServletContext ctx)
     {
-    	Configuration c= null;
-    	
-    	if ((c=(Configuration) ctx.getAttribute(CONTEXT_ATTRIBUTE_NAME))==null)
-    	{
-    		c= new Configuration(ctx);
-    		ctx.setAttribute(CONTEXT_ATTRIBUTE_NAME, c);
-    	}
+	    	Configuration c= null;
+	    	
+	    	if ((c=(Configuration) ctx.getAttribute(CONTEXT_ATTRIBUTE_NAME))==null)
+	    	{
+	    		c= new Configuration(ctx);
+	    		ctx.setAttribute(CONTEXT_ATTRIBUTE_NAME, c);
+	    	}
     		
         return c;
     }

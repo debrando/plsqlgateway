@@ -26,7 +26,9 @@ import javax.sql.DataSource;
 
 import oracle.jdbc.OracleCallableStatement;
 import oracle.jdbc.OracleConnection;
+import oracle.jdbc.OracleResultSet;
 import oracle.jdbc.OracleTypes;
+import oracle.sql.BLOB;
 
 import org.apache.commons.fileupload.FileUpload;
 import org.apache.commons.fileupload.FileUploadException;
@@ -145,6 +147,12 @@ public class PLSQLGatewayServlet extends HttpServlet
 			doMonitor(request,response,ds,dadConfig);
 			return;
 		} 
+		else
+		if (pathInfo.startsWith("/xdb"))
+		{
+			sendXDBFile(request,response,ds,dadConfig,pathInfo.substring(4));
+			return;
+		}
 		
 		OracleConnection conn= null;
 		
@@ -270,6 +278,60 @@ public class PLSQLGatewayServlet extends HttpServlet
 		long after= System.currentTimeMillis();
         if (dadConfig.getBooleanParameter("timed-statistics"))
         	logger.fatal((after-before)+"ms: "+request.getRequestURL());
+	}
+
+	private void sendXDBFile(HttpServletRequest request, HttpServletResponse response, DataSource ds, EntityConfig dadConfig, String path) 
+	{
+		OracleConnection conn= null;
+		OutputStream out= null;
+		
+		try 
+		{
+			
+			conn= (OracleConnection)ds.getConnection();
+			
+			PreparedStatement stmt= conn.prepareStatement("select XDBURIType(?).getBlob() content from dual");
+			stmt.setString(1, path);
+			OracleResultSet rs= (OracleResultSet)stmt.executeQuery();
+			
+			if (rs.next())
+			{
+				BLOB b= rs.getBLOB(1);
+				
+				if (b==null)
+	    			   response.sendError(HttpServletResponse.SC_FORBIDDEN);
+				else
+				{
+					byte[] buff= new byte[1024];
+					int count= 0;
+					InputStream in= b.getBinaryStream();
+					out= response.getOutputStream();
+					
+					while ((count=in.read(buff))>0)
+						out.write(buff, 0, count);
+				
+					out.flush();
+				}
+			}
+			else
+    			   response.sendError(HttpServletResponse.SC_FOUND);
+			
+			rs.close();
+			stmt.close();
+		}
+		catch (Exception e)
+		{
+			logger.error("monitor service", e);
+			try { response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); } catch (IOException ie) {}
+		}
+	    finally
+	    {
+	    	    if (conn!=null)
+				try { closeConnection(conn, dadConfig); } catch (SQLException se) { logger.error("closing monitor connection", se); }
+
+		    if (out!=null)
+				try { out.close(); } catch (IOException e) {}
+	    }
 	}
 
 	private void doMonitor(HttpServletRequest request, HttpServletResponse response, DataSource ds, EntityConfig dadConfig)

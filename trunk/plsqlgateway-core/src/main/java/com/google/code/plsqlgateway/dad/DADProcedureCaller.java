@@ -7,6 +7,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -38,6 +39,8 @@ public class DADProcedureCaller
     private HttpServletRequest request;
     @SuppressWarnings("unchecked")
 	private Map parameterMap;
+    @SuppressWarnings("unchecked")
+	private Enumeration parameterNames;
     private EntityConfig dadConfig;
     private String pathInfo;
     private String calledProc;
@@ -46,8 +49,9 @@ public class DADProcedureCaller
     private String[][] cgienv;
     
 	@SuppressWarnings("unchecked")
-	public DADProcedureCaller(String pathInfo, Map parameterMap, HttpServletRequest request, EntityConfig dadConfig, String[][] cgienv, EntityConfig intconfig, EntityConfig genconfig)
+	public DADProcedureCaller(String pathInfo, Enumeration parameterNames, Map parameterMap, HttpServletRequest request, EntityConfig dadConfig, String[][] cgienv, EntityConfig intconfig, EntityConfig genconfig)
 	{
+		this.parameterNames= parameterNames;
 		this.parameterMap= parameterMap;
 		this.request= request;
 		this.dadConfig= dadConfig;
@@ -573,13 +577,11 @@ public class DADProcedureCaller
 		ArrayList<String> names= new ArrayList<String>();
 		ArrayList<String> values= new ArrayList<String>();
         
-		Iterator i= m.entrySet().iterator();
-		
-		while (i.hasNext())
+		while (parameterNames.hasMoreElements())
 		{
-			Entry e= (Entry) i.next();
+			String name= (String) parameterNames.nextElement();
 			
-			Object value= e.getValue();
+			Object value= m.get(name);
 			
 			if (value instanceof String[])
 			{
@@ -587,13 +589,13 @@ public class DADProcedureCaller
 				
 				for (String v: vals)
 				{
-					names.add((String) e.getKey());
+					names.add(name);
 					values.add(v);
 				}
 			}
 			else
 			{
-				names.add((String) e.getKey());
+				names.add(name);
 				values.add((String) value);
 			}
 		}

@@ -10,6 +10,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -175,6 +176,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 	        RequestContext rc= new ServletRequestContext(request);
 	        
 	        Map parameterMap= request.getParameterMap();
+	        Enumeration parameterNames= request.getParameterNames();
 
 	        if (FileUpload.isMultipartContent(rc))
                 try
@@ -187,6 +189,7 @@ public class PLSQLGatewayServlet extends HttpServlet
                 }   
               
 			DADProcedureCaller caller= new DADProcedureCaller(pathInfo,
+					                                          parameterNames,
 					                                          parameterMap,
 					                                          request,
 					                                          dadConfig,

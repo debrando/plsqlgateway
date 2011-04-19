@@ -159,9 +159,26 @@ public class PLSQLGatewayServlet extends HttpServlet
 		
 		try 
 		{
-			conn= (OracleConnection)ds.getConnection();
+			try
+			{
+				conn= (OracleConnection)ds.getConnection();
+			}
+			catch (Exception ex)
+			{
+				try
+				{
+					ds= reloadDADDataSource(dadName);
+					conn= (OracleConnection)ds.getConnection();
+				}
+				catch (Exception ex2)
+				{
+					logger.fatal("reinitializing DAD",ex2);
+					throw ex; // throws the first exception that was the inital cause 
+				}
+			}
+			
 			conn.setAutoCommit(false);
-
+			
 			if (dadConfig.getBooleanParameter("timed-statistics"))
 				logger.fatal((System.currentTimeMillis()-before)+"ms: got connection");
 			
@@ -528,6 +545,13 @@ public class PLSQLGatewayServlet extends HttpServlet
 		return (DataSource) ctx.getAttribute(DADContextListener.DAD_DATA_SOURCE+"|"+dadName);
 	}
 	
+	private DataSource reloadDADDataSource(String dadName)
+	throws Exception
+	{
+		DADContextListener.initializeDAD(dadName,config,ctx);
+		return (DataSource) ctx.getAttribute(DADContextListener.DAD_DATA_SOURCE+"|"+dadName);
+	}
+
 	private static final String[][] getCgiEnv(HttpServletRequest request, String dadName, String pathInfo, String dadPath, EntityConfig dadConfig, ServletContext ctx)
 	throws IOException
 	{

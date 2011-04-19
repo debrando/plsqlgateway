@@ -75,7 +75,7 @@ public class DADContextListener implements ServletContextListener
 	}
 
 	@SuppressWarnings("unchecked")
-	private static void initializeDAD(String dadName, Configuration config, ServletContext ctx)
+	public static void initializeDAD(String dadName, Configuration config, ServletContext ctx)
 	throws Exception
 	{
 		logger.info("init DAD: "+dadName);

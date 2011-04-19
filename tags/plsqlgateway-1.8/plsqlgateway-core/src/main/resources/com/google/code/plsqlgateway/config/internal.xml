@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<entity xmlns="http://code.google.com/p/eforceconfig/wiki/XMLSchema" name="internal">
+	<parameters>
+		<parameter name="sql-injection-regexp" value="[a-z_0-9]{0,31}(\.[a-z_0-9]{0,31}){0,2}" />
+	</parameters>
+	<sql>
+	  <statement name="OWA_CALL">
+	  <![CDATA[
+	  
+			declare
+			 v_ret_code number;
+			begin
+			  owa.init_cgi_env(?,?,?);
+			  htp.HTBUF_LEN := 63;
+			 
+			  if not #request-validation-function# then
+			   v_ret_code:= 2;
+			  else
+			      
+			      #before-procedure#;
+			      
+				  #procedure#;
+				 
+				  if (wpg_docload.is_file_download) then
+				   v_ret_code:= 1;
+				   wpg_docload.get_download_file(?);
+				  else
+				   v_ret_code:= 0;
+				  end if;
+			 
+  			      #after-procedure#;
+				  commit;
+				   
+			  end if;
+			  
+			  ? := v_ret_code;
+			  
+			end;
+	  
+	  ]]>
+	  </statement>
+	  <statement name="OWA_FETCH">
+	  <![CDATA[
+                declare
+                  v_page  htp.htbuf_arr;
+                begin
+                   owa.get_page(v_page,?);
+                   ?:= v_page;
+                end;
+	  ]]>
+	  </statement>
+	  <statement name="OWA_BLOB">
+	  <![CDATA[begin wpg_docload.get_download_blob(?); end;]]>
+	  </statement>
+	  <statement name="OWA_BFILE">
+	  <![CDATA[begin wpg_docload.get_download_bfile(?); end;]]>
+	  </statement>
+	  <statement name="OWA_UPLOAD">
+	  <![CDATA[
+	     begin
+	       insert into #table# (name,
+	                            mime_type,
+	                            dad_charset,
+	                            last_updated,
+	                            content_type,
+	                            blob_content)
+	       values (?,
+	               ?,
+	               'utf-8',
+	               sysdate,
+	               'BLOB',
+	               empty_blob)
+	       returning blob_content into ?;
+	     end;
+      ]]>
+	  </statement>
+	  <statement name="OWA_UPLOAD_SIZE">
+	  <![CDATA[
+	     update #table#
+	        set doc_size= dbms_lob.getlength(blob_content)
+	      where name= ?
+      ]]>
+	  </statement>
+	  <statement name="OWA_UPLOAD_ID">
+	  <![CDATA[
+	     begin
+	       insert into #table# (document_id,
+	                            file_name,
+	                            content_type,
+	                            upload_date,
+	                            blob_content)
+	       values (#sequence#.nextval,
+	               ?,
+	               ?,
+	               sysdate,
+	               empty_blob)
+	       returning blob_content, document_id into ?, ?;
+	     end;
+      ]]>
+	  </statement>
+	  <statement name="OWA_UPLOAD_ID_SIZE">
+	  <![CDATA[
+	     update #table#
+	        set content_size= dbms_lob.getlength(blob_content)
+	      where document_id= ?
+      ]]>
+	  </statement>
+	  <statement name="TRANSLATE_SYNONYM">
+	  <![CDATA[
+	     declare
+	       v_parts     owa.vc_arr:= ?;
+	       v_retval    varchar2(255);
+	     begin
+	     
+	     
+	       if v_parts.count = 1 then
+	       
+	      	-- procedure synonym
+
+	          begin
+		          select table_owner||'.'||table_name
+		            into v_retval
+		            from user_synonyms
+		           where synonym_name= v_parts(1);
+		      exception
+		       when no_data_found then
+		          select table_owner||'.'||table_name
+		            into v_retval
+		            from all_synonyms
+		           where synonym_name= v_parts(1)
+		             and owner= 'PUBLIC';
+              end;		       
+	           
+	       elsif v_parts.count = 2 then
+     	    -- (package synonym).procedure
+     	    -- schema.(procedure synonym)
+
+	          begin
+		          select table_owner||'.'||table_name||'.'||v_parts(2)
+		            into v_retval
+		            from user_synonyms
+		           where synonym_name= v_parts(1);
+		      exception
+		       when no_data_found then
+		       
+		         begin
+		          select table_owner||'.'||table_name||'.'||v_parts(2)
+		            into v_retval
+		            from all_synonyms
+		           where synonym_name= v_parts(1)
+		             and owner= 'PUBLIC';
+			     exception
+			       when no_data_found then
+			          select table_owner||'.'||table_name
+			            into v_retval
+			            from all_synonyms
+			           where synonym_name= v_parts(2)
+			             and owner= v_parts(1);
+                 end;		             
+		             
+		             
+              end;		       
+
+	       else
+		    -- schema.(package synonym).procedure
+
+	          select table_owner||'.'||table_name||'.'||v_parts(3)
+	            into v_retval
+	            from all_synonyms
+	           where synonym_name= v_parts(2)
+	             and owner= v_parts(1);
+
+	       end if;	     
+	     
+	       ?:= v_retval;
+	     end;
+      ]]>
+	  </statement>
+	  <statement name="AUTHORIZE">
+	  <![CDATA[
+	     declare
+	        v_retcode number;
+	        v_ip_address  owa.vc_arr;
+	        
+	        
+		   function split(p_buffer varchar2, p_sep varchar2)
+		   return owa.vc_arr
+		   is
+		        idx      pls_integer;
+		        list     varchar2(32767) := p_buffer;
+		        splits   owa.vc_arr;
+		        cnt      pls_integer:=1;
+		   begin
+		
+		        if p_buffer is null then
+		          return splits;
+		        end if;
+		
+		        loop
+		            idx := instr(list,p_sep);
+		            if idx > 0 then
+		                splits(cnt):= substr(list,1,idx-1);
+		                cnt:=cnt+1;
+		                list := substr(list,idx+length(p_sep));
+		            else
+		                splits(cnt):= list;
+		                exit;
+		            end if;
+		        end loop;
+		        return splits;
+		   end split;
+	        
+	     begin
+			owa.init_cgi_env(?,?,?);
+	     
+	        owa_sec.set_authorization(owa_sec.PER_PACKAGE);
+	        owa.user_id:= ?;
+	        owa.password:= ?;
+	        v_ip_address:= split(?,'.');
+	        owa.hostname:= ?;
+	        
+	        for i in 1..v_ip_address.count loop
+	          owa.ip_address(i):= to_number(v_ip_address(i));
+	        end loop;
+	        
+	        if #pkg#.authorize then
+	          v_retcode:= 1;
+	        else
+	          v_retcode:= 0;
+	        end if;
+	        
+	        ?:= v_retcode;
+	        ?:= owa.protection_realm;
+	      
+	     end;
+      ]]>
+	  </statement>
+	  <statement name="RESET_PACKAGES">
+	  <![CDATA[begin dbms_session.reset_package; end;]]>
+	  </statement>
+	  <statement name="EXISTS_PROC">
+	  <![CDATA[select 1 from user_procedures where object_name= ?]]>
+	  </statement>
+	  <statement name="EXISTS_PKG_PROC">
+	  <![CDATA[select 1 from user_procedures where procedure_name= ? and object_name= ?]]>
+	  </statement>
+	  <statement name="EXISTS_SCHEMA_PROC">
+	  <![CDATA[select 1 from all_procedures where object_name= ? and owner= ?]]>
+	  </statement>
+	  <statement name="EXISTS_SCHEMA_PKG_PROC">
+	  <![CDATA[select 1 from all_procedures where procedure_name= ? and object_name= ? and owner= ?]]>
+	  </statement>
+	  <statement name="PROC_COLUMNS">
+	  <![CDATA[select argument_name, data_type from user_arguments where object_name= ? and package_name is null and argument_name is not null]]>
+	  </statement>
+	  <statement name="PKG_PROC_COLUMNS">
+	  <![CDATA[select argument_name, data_type from user_arguments where object_name= ? and package_name= ? and argument_name is not null]]>
+	  </statement>
+	  <statement name="SCHEMA_PROC_COLUMNS">
+	  <![CDATA[select argument_name, data_type from all_arguments where object_name= ? and package_name is null and owner= ? and argument_name is not null]]>
+	  </statement>
+	  <statement name="SCHEMA_PKG_PROC_COLUMNS">
+	  <![CDATA[select argument_name, data_type from all_arguments where object_name= ? and package_name= ? and owner= ? and argument_name is not null]]>
+	  </statement>
+	</sql>
+</entity>

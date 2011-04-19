@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<entity xmlns="http://code.google.com/p/eforceconfig/wiki/XMLSchema" name="plsqlgateway.general">
+	<parameters>
+		<parameter name="sql-injection-regexp" value="[a-z_0-9]{0,31}(\.[a-z_0-9]{0,31}){0,2}" />
+		<parameter name="embedded" value="true"/>
+		<parameter name="multiple-dad" value="false"/>
+		<parameter name="dads" type="list">
+		   <value value="dad1"/>
+		   <value value="dad2"/>
+		</parameter>
+	</parameters>
+</entity>

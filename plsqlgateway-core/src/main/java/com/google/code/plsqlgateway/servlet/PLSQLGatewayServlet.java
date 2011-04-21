@@ -98,9 +98,19 @@ public class PLSQLGatewayServlet extends HttpServlet
 			{
 				String pi= request.getPathInfo();
 				int fi= pi.indexOf('/',1);
-				dadPath+= pi.substring(0,fi);
-				dadName= pi.substring(1,fi);
-				pathInfo= pi.substring(fi);
+				
+				if (fi==-1)
+				{
+					dadPath+= pi;
+					dadName= pi.substring(1);
+					pathInfo= "/";
+				}
+				else
+				{
+					dadPath+= pi.substring(0,fi);
+					dadName= pi.substring(1,fi);
+					pathInfo= pi.substring(fi);
+				}
 			}
 	        else
 	        {
@@ -113,9 +123,20 @@ public class PLSQLGatewayServlet extends HttpServlet
 		{
 			String pi= request.getPathInfo();
 			int fi= pi.indexOf('/',1);
-			dadPath= request.getContextPath()+pi.substring(0,fi);
-			dadName= pi.substring(1,fi);
-			pathInfo= pi.substring(fi);
+			
+			if (fi==-1)
+			{
+				dadPath= request.getContextPath()+pi;
+				dadName= pi.substring(1);
+				pathInfo= "/";
+			}
+			else
+			{
+				dadPath= request.getContextPath()+pi.substring(0,fi);
+				dadName= pi.substring(1,fi);
+				pathInfo= pi.substring(fi);
+			}
+			
 		}
 		else
 		{

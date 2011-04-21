@@ -145,13 +145,13 @@ public class PLSQLGatewayServlet extends HttpServlet
 		else
 		if (pathInfo.equals("/_monitor"))
 		{
-			doMonitor(request,response,ds,dadConfig);
+			doMonitor(request,response,ds,dadConfig,dadName);
 			return;
 		} 
 		else
 		if (pathInfo.startsWith("/xdb"))
 		{
-			sendXDBFile(request,response,ds,dadConfig,pathInfo.substring(4));
+			sendXDBFile(request,response,ds,dadConfig,dadName,pathInfo.substring(4));
 			return;
 		}
 		
@@ -159,26 +159,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 		
 		try 
 		{
-			try
-			{
-				conn= (OracleConnection)ds.getConnection();
-			}
-			catch (Exception ex)
-			{
-				try
-				{
-					ds= reloadDADDataSource(dadName);
-					conn= (OracleConnection)ds.getConnection();
-				}
-				catch (Exception ex2)
-				{
-					logger.fatal("reinitializing DAD",ex2);
-					throw ex; // throws the first exception that was the inital cause 
-				}
-			}
-			
-			conn.setAutoCommit(false);
-			
+            conn= getConnection(ds,dadName);			
 			if (dadConfig.getBooleanParameter("timed-statistics"))
 				logger.fatal((System.currentTimeMillis()-before)+"ms: got connection");
 			
@@ -300,7 +281,33 @@ public class PLSQLGatewayServlet extends HttpServlet
         	logger.fatal((after-before)+"ms: "+request.getRequestURL());
 	}
 
-	private void sendXDBFile(HttpServletRequest request, HttpServletResponse response, DataSource ds, EntityConfig dadConfig, String path) 
+	private OracleConnection getConnection(DataSource ds, String dadName)
+	throws Exception
+	{
+		OracleConnection conn= null;
+		try
+		{
+			conn= (OracleConnection)ds.getConnection();
+		}
+		catch (Exception ex)
+		{
+			try
+			{
+				ds= reloadDADDataSource(dadName);
+				conn= (OracleConnection)ds.getConnection();
+			}
+			catch (Exception ex2)
+			{
+				logger.fatal("reinitializing DAD",ex2);
+				throw ex; // throws the first exception that was the inital cause 
+			}
+		}
+		
+		conn.setAutoCommit(false);
+		return conn;
+	}
+
+	private void sendXDBFile(HttpServletRequest request, HttpServletResponse response, DataSource ds, EntityConfig dadConfig, String dadName, String path) 
 	{
 		OracleConnection conn= null;
 		OutputStream out= null;
@@ -308,7 +315,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 		try 
 		{
 			
-			conn= (OracleConnection)ds.getConnection();
+            conn= getConnection(ds,dadName);			
 			
 			PreparedStatement stmt= conn.prepareStatement("select XDBURIType(?).getBlob() content from dual");
 			stmt.setString(1, path);
@@ -354,7 +361,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 	    }
 	}
 
-	private void doMonitor(HttpServletRequest request, HttpServletResponse response, DataSource ds, EntityConfig dadConfig)
+	private void doMonitor(HttpServletRequest request, HttpServletResponse response, DataSource ds, EntityConfig dadConfig, String dadName)
 	{
 		OracleConnection conn= null;
 		PrintWriter out= null;
@@ -364,7 +371,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 		{
 			out= response.getWriter();
 			out.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-			conn= (OracleConnection)ds.getConnection();
+            conn= getConnection(ds,dadName);			
 			
 			PreparedStatement stmt= conn.prepareStatement("select * from dual");
 			ResultSet rs= stmt.executeQuery();

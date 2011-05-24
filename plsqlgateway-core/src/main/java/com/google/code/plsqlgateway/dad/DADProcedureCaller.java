@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -12,7 +13,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.Map.Entry;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -35,6 +35,7 @@ public class DADProcedureCaller
 	private EntityConfig intconfig;
 	private EntityConfig genconfig;
     private boolean isdocument;
+    private boolean unauthorized;
     private String[] lines;
     private HttpServletRequest request;
     @SuppressWarnings("unchecked")
@@ -65,15 +66,14 @@ public class DADProcedureCaller
 	throws Exception
 	{
 		  stmt.setPlsqlIndexTable(parameterIndex, arrayData, arrayData.length, arrayData.length, OracleTypes.VARCHAR, 32767);
-	}		
+	}
 	
-	public void call(Connection conn)
+	private void _call(Connection conn, boolean describe)
 	throws Exception
 	{
-		
 	    boolean flexible= pathInfo.startsWith("/!");
 
-	    String sql= getSQL(flexible, conn);
+	    String sql= getSQL(flexible, describe, conn);
 	    
 	    OracleCallableStatement stmt= (OracleCallableStatement) conn.prepareCall(sql);
 	    
@@ -129,21 +129,61 @@ public class DADProcedureCaller
 	        if (dadConfig.getBooleanParameter("timed-statistics"))
 	        	logger.fatal((after-before)+"ms: "+request.getPathInfo());
 		    
-	    	int retcode= stmt.getInt(retcodeidx);
+	        	int retcode= stmt.getInt(retcodeidx);
 	    	
-	    	if (retcode==1)
-	    		isdocument= true;
+	      	if (retcode==1)
+	    	     	isdocument= true;
+	      	else
+	      	if (retcode==2)
+	      		unauthorized= true;
 		}
 		catch (Exception ex)
 		{
-			dumpCgiEnv(cgienv);
 			throw ex;
 		}
         finally
         {
         	stmt.close();
         }
+		
+	}
+	
+	public void call(Connection conn)
+	throws Exception
+	{
+		try
+		{
+	        _call(conn,false);
+		}
+		catch (Exception ex)
+		{
+			try
+			{
+				if (ex instanceof SQLException)
+				{
+					SQLException sex= (SQLException)ex;
+					
+					if (sex.getErrorCode()==6550)
+		              _call(conn,true); // ex1
+					else
+					  throw ex;
+				}
+				else
+					  throw ex;
+			}
+			catch (Exception ex1)
+			{
+				dumpCgiEnv(cgienv);
+				throw ex1;
+			}
+		}
         
+		
+	}
+	
+	public boolean isAuthorized()
+	{
+		return !unauthorized;
 	}
 	
 	public int fetch(Connection conn)
@@ -297,7 +337,7 @@ public class DADProcedureCaller
 	}
 	
 	@SuppressWarnings("unchecked")
-	private String getSQL(boolean flexible,Connection conn)
+	private String getSQL(boolean flexible, boolean describe, Connection conn)
 	throws Exception
 	{
 		String sqlStmt= intconfig.getSQLstmt("OWA_CALL");
@@ -314,7 +354,7 @@ public class DADProcedureCaller
 			procedure= sqlInjectionIdentifier(pathInfo.substring(1));	
 			calledProc= procedure;
 			
-			Map<String,Integer> parameterTypes= describeProcedure(calledProc.toUpperCase(),conn);
+			Map<String,Integer> parameterTypes= describeProcedure(calledProc.toUpperCase(),describe,conn);
 
 			String pars= "";
 			Set<Map.Entry<String,Object>> s= parameterMap.entrySet();
@@ -364,7 +404,7 @@ public class DADProcedureCaller
 		return sqlStmt;
 	}
 	
-	private Map<String,Integer> describeProcedure(String calledProc, Connection conn)
+	private Map<String,Integer> describeProcedure(String calledProc, boolean describe, Connection conn)
 	throws Exception
 	{			
 	   /* TODO: cache procedure description (IMUO, it is a bad idea to describe procedures at all, 
@@ -374,8 +414,8 @@ public class DADProcedureCaller
 	    * Avoid this kind of procs, instead use flexible parameter passing! (http://server:port/pls/dad/!pkg.proc)
 	    * 
 	    */
-		
-	   if (!dadConfig.getBooleanParameter("describe-procedure"))
+	
+	   if (!describe||!dadConfig.getBooleanParameter("describe-procedure"))
 		   return EMPTY_DESCRIBE_MAP;
 		   
        String[] parts= calledProc.split("\\.");
@@ -392,7 +432,7 @@ public class DADProcedureCaller
     	   else
     	   {
     		   proc= translateSynonym(conn,parts);
-    		   return describeProcedure(proc, conn);
+    		   return describeProcedure(proc, describe, conn);
     	   }
        }
        else
@@ -419,7 +459,7 @@ public class DADProcedureCaller
         	   else
         	   {
         		   proc= translateSynonym(conn,parts);
-        		   return describeProcedure(proc, conn);
+        		   return describeProcedure(proc, describe, conn);
         	   }
        	   }
        		         	      
@@ -439,7 +479,7 @@ public class DADProcedureCaller
     	   else
     	   {
     		   proc= translateSynonym(conn,parts);
-    		   return describeProcedure(proc, conn);        		   
+    		   return describeProcedure(proc, describe, conn);        		   
     	   }
        }
        else

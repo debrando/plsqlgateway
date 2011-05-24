@@ -218,10 +218,13 @@ public class PLSQLGatewayServlet extends HttpServlet
 			
 			caller.call(conn);
 			
+			if (!caller.isAuthorized())
+              logger.info("NOT AUTHORIZED by request-validation-function");
+			
 			OutputStream out= null;
 			PrintWriter pw= null;
 			boolean body= false;
-			
+
 			while (caller.fetch(conn)>0)
 			{
 				String[] lines= caller.getLines();
@@ -682,7 +685,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 	    
 	    String[] retval= null;
 	    
-	    int max_header_length= 32000;
+	    int max_header_length= 30000; // leave 2000 bytes of overflow for multibyte chars
 	    
 	    if (soapBody.length()<max_header_length)
 	    	retval= new String[]{soapBody};

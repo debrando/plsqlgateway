@@ -158,7 +158,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 		
 		EntityConfig dadConfig= config.getDADConfig(dadName);
 		
-		if (pathInfo.equals("/"))
+		if (pathInfo==null||pathInfo.equals("/"))
 		{
 			response.sendRedirect(dadPath+"/"+(dadConfig.getParameter("default-page")!=null ? dadConfig.getParameter("default-page") : "home"));
 			return;

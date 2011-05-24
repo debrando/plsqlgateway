@@ -33,8 +33,6 @@
 		<param-value>true</param-value>
 	</context-param>	
 	<servlet>
-		<description>
-		</description>
 		<display-name>PLSQLGatewayServlet</display-name>
 		<servlet-name>PLSQLGatewayServlet</servlet-name>
 		<servlet-class>com.google.code.plsqlgateway.servlet.PLSQLGatewayServlet</servlet-class>

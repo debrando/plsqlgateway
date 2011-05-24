@@ -21,6 +21,18 @@
       <version>${project.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>com.google.code.eforceconfig</groupId>
+      <artifactId>eforceconfig-core</artifactId>
+      <version>${eforceconfig.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.code.eforceconfig</groupId>
+      <artifactId>eforceconfig-servlet</artifactId>
+      <version>${eforceconfig.version}</version>
+    </dependency>
+
   </dependencies>
   <build>
    <finalName>plsqlgateway</finalName>

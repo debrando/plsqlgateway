@@ -10,6 +10,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -200,7 +201,23 @@ public class PLSQLGatewayServlet extends HttpServlet
 	        if (FileUpload.isMultipartContent(rc))
                 try
                 {
-                	parameterMap= processMultipart(request, rc, conn, dadConfig);
+                	    final ArrayList names= new ArrayList(); 
+                   	parameterMap= processMultipart(request, rc, conn, dadConfig, names);
+                   	parameterNames= new Enumeration() 
+                   	{
+                        private Iterator i= names.iterator();
+                        
+						public boolean hasMoreElements() 
+						{
+							return i.hasNext();
+						}
+
+						public Object nextElement() 
+						{
+							return i.next();
+						}
+                   		
+					};
                 }
                 catch(Exception ex)
                 {
@@ -550,7 +567,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 	}
 
 	@SuppressWarnings("unchecked")
-	private Map processMultipart(HttpServletRequest request, RequestContext rc, OracleConnection conn, EntityConfig dadConfig) 
+	private Map processMultipart(HttpServletRequest request, RequestContext rc, OracleConnection conn, EntityConfig dadConfig, ArrayList names) 
 	throws FileUploadException
 	{
         ServletFileUpload sfu= new ServletFileUpload(new OracleFileItemFactory(conn,intconfig,dadConfig));
@@ -562,10 +579,12 @@ public class PLSQLGatewayServlet extends HttpServlet
         {
            OracleFileItem fi= (OracleFileItem)i.next();
            
+           if (!names.contains(fi.getFieldName())) names.add(fi.getFieldName());
+           
            if (fi.isFormField())
-        	 addParamValue(uploadParams,fi.getFieldName(), fi.getString());
+        	   		addParamValue(uploadParams,fi.getFieldName(), fi.getString());
            else
-        	 addParamValue(uploadParams,fi.getFieldName(), fi.getDocumentId());
+        	   		addParamValue(uploadParams,fi.getFieldName(), fi.getDocumentId());
         }
         
         return uploadParams;

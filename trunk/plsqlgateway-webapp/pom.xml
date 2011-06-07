@@ -18,19 +18,19 @@
     <dependency>
       <groupId>com.google.code.plsqlgateway</groupId>
       <artifactId>plsqlgateway-core</artifactId>
-      <version>${project.version}</version>
+      <version>1.9</version>
     </dependency>
 
     <dependency>
       <groupId>com.google.code.eforceconfig</groupId>
       <artifactId>eforceconfig-core</artifactId>
-      <version>${eforceconfig.version}</version>
+      <version>1.1</version>
     </dependency>
 
     <dependency>
       <groupId>com.google.code.eforceconfig</groupId>
       <artifactId>eforceconfig-servlet</artifactId>
-      <version>${eforceconfig.version}</version>
+      <version>1.1</version>
     </dependency>
 
   </dependencies>

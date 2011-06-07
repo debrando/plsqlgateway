@@ -10,7 +10,7 @@
 
 	<groupId>com.google.code.plsqlgateway</groupId>
 	<artifactId>plsqlgateway</artifactId>
-	<version>1.10-SNAPSHOT</version>
+	<version>1.10</version>
 	<packaging>pom</packaging>
 	<name>plsqlgateway</name>
     <description>A java PL/SQL gateway implementation</description>
@@ -23,9 +23,9 @@
 	    </license>
     </licenses>
     <scm>
-	    <url>http://code.google.com/p/plsqlgateway/source/browse/trunk/</url>
-        <connection>scm:svn:http://plsqlgateway.googlecode.com/svn/trunk/</connection>
-        <developerConnection>scm:svn:https://plsqlgateway.googlecode.com/svn/trunk/</developerConnection>
+	    <url>http://code.google.com/p/plsqlgateway/source/browse/tags/plsqlgateway-1.10</url>
+        <connection>scm:svn:http://plsqlgateway.googlecode.com/svn/tags/plsqlgateway-1.10</connection>
+        <developerConnection>scm:svn:https://plsqlgateway.googlecode.com/svn/tags/plsqlgateway-1.10</developerConnection>
     </scm>
 	<developers>
 	    <developer>

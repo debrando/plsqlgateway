@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<entity xmlns="http://code.google.com/p/eforceconfig/wiki/XMLSchema" name="plsqlgateway.plsqlgateway">
+<entity xmlns="http://code.google.com/p/eforceconfig/wiki/XMLSchema" name="plsqlgateway.embedded">
 	<parameters>
 		<parameter name="user" value="plsqlgateway" />
 		<parameter name="password" value="plsqlgateway" />

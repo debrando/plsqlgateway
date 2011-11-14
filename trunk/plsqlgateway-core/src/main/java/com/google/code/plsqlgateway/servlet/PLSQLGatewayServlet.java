@@ -271,8 +271,15 @@ public class PLSQLGatewayServlet extends HttpServlet
 							    response.addHeader(header[0], header[1].substring(0, header[1].length()-1));
 							    
 							    if (header[0].equals("Location"))
-							    	response.setStatus(HttpServletResponse.SC_FOUND);
-
+						    	    response.setStatus(HttpServletResponse.SC_FOUND);
+							    else
+							    if (header[0].equals("Status"))
+							    {
+							    	int pos= header[1].indexOf(" ");
+							    	String code= (pos==-1 ? header[1] : header[1].substring(0,pos));
+				    	       	    response.setStatus(Integer.parseInt(code));
+							    }
+							    
 							    lastLine= "";
 							}
 							
@@ -532,6 +539,51 @@ public class PLSQLGatewayServlet extends HttpServlet
 		doGet(request, response);
 	}
 	
+	/**
+	 * @see HttpServlet#doDelete(HttpServletRequest request, HttpServletResponse response)
+	 */
+	protected void doDelete(HttpServletRequest request, HttpServletResponse response)
+	throws ServletException, IOException 
+    {
+		doGet(request, response);
+	}
+	
+	/**
+	 * @see HttpServlet#doTrace(HttpServletRequest request, HttpServletResponse response)
+	 */
+	protected void doPut(HttpServletRequest request, HttpServletResponse response)
+	throws ServletException, IOException 
+    {
+		doGet(request, response);
+	}
+	
+	/**
+	 * @see HttpServlet#doTrace(HttpServletRequest request, HttpServletResponse response)
+	 */
+	protected void doTrace(HttpServletRequest request, HttpServletResponse response)
+	throws ServletException, IOException 
+    {
+		doGet(request, response);
+	}
+	
+	/**
+	 * @see HttpServlet#doHead(HttpServletRequest request, HttpServletResponse response)
+	 */
+	protected void doHead(HttpServletRequest request, HttpServletResponse response)
+	throws ServletException, IOException 
+    {
+		doGet(request, response);
+	}
+	
+	/**
+	 * @see HttpServlet#doOptions(HttpServletRequest request, HttpServletResponse response)
+	 */
+	protected void doOptions(HttpServletRequest request, HttpServletResponse response)
+	throws ServletException, IOException 
+    {
+		doGet(request, response);
+	}
+	
 	private void setVcArr(OracleCallableStatement stmt, int parameterIndex, String[] arrayData)
 	throws Exception
 	{
@@ -649,14 +701,12 @@ public class PLSQLGatewayServlet extends HttpServlet
 		if (request.getHeader("SOAPAction")!=null)
 		{
 			  m.put("HTTP_SOAPACTION", request.getHeader("SOAPAction"));
-			  String[] soapBody= getSoapBody(request);
+			  String[] soapBody= getBody(request);
 			  
 			  len+=2;
 
 			  if (soapBody.length==1)
-			  {
 			      m.put("SOAP_BODY", soapBody[0]);
-			  }
 			  else
 			  {
 			      m.put("SOAP_BODY_LENGTH", soapBody.length+"");
@@ -667,6 +717,25 @@ public class PLSQLGatewayServlet extends HttpServlet
 	  			  len+= soapBody.length;  			      
 			  }  				  
 		}
+		else
+		if (request.getContentType()!=null&&request.getContentType().startsWith("application/json"))
+		{
+			String[] body= getBody(request);
+			
+			len++;
+			
+			if (body.length==1)
+				m.put("REQUEST_BODY", body[0]);
+			else
+  		    {
+		      m.put("REQUEST_BODY_LENGTH", body.length+"");
+		      
+		      for (int i = 0; i < body.length; i++) 
+  			      m.put("REQUEST_BODY_"+(i+1), body[i]);
+
+  			  len+= body.length;  			      
+		    }  				  
+		}		
 		
 		String[][] retval= new String[2][len];
 		
@@ -683,7 +752,7 @@ public class PLSQLGatewayServlet extends HttpServlet
         return retval;
 	}	
 
-	private static final String[] getSoapBody(HttpServletRequest request) 
+	private static final String[] getBody(HttpServletRequest request) 
 	throws IOException
 	{
 		ByteArrayOutputStream baos= new ByteArrayOutputStream();

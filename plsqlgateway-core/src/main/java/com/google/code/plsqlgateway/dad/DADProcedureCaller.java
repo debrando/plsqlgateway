@@ -72,8 +72,10 @@ public class DADProcedureCaller
 	throws Exception
 	{
 	    boolean flexible= pathInfo.startsWith("/!");
+	    String pathAlias= dadConfig.getParameter("path-alias");
+	    boolean alias= pathInfo.startsWith("/"+pathAlias+"/");
 
-	    String sql= getSQL(flexible, describe, conn);
+	    String sql= getSQL(flexible, alias, describe, conn);
 	    
 	    OracleCallableStatement stmt= (OracleCallableStatement) conn.prepareCall(sql);
 	    
@@ -82,6 +84,18 @@ public class DADProcedureCaller
 	    setVcArr(stmt, parameterIndex++, cgienv[0]);
 	    setVcArr(stmt, parameterIndex++, cgienv[1]);
 
+	    if (alias)
+	    {
+	    	stmt.setString(parameterIndex++, pathInfo.substring(pathInfo.indexOf('/', 1)));
+	    	
+	    	if (dadConfig.getBooleanParameter("x-path-alias-flexible"))
+	    	{
+			    String[][] pars= getParameters();
+			    setVcArr(stmt, parameterIndex++, pars[0]);
+			    setVcArr(stmt, parameterIndex++, pars[1]);
+	    	}
+	    }
+	    else
 	    if (flexible) // flexible parameter passing
 	    {
 		    String[][] pars= getParameters();
@@ -337,13 +351,21 @@ public class DADProcedureCaller
 	}
 	
 	@SuppressWarnings("unchecked")
-	private String getSQL(boolean flexible, boolean describe, Connection conn)
+	private String getSQL(boolean flexible, boolean alias, boolean describe, Connection conn)
 	throws Exception
 	{
 		String sqlStmt= intconfig.getSQLstmt("OWA_CALL");
 		
 		String procedure= null;
 		
+		String pathAlias= dadConfig.getParameter("path-alias");
+		
+		if (alias)
+		{
+			calledProc= dadConfig.getParameter("path-alias-procedure");
+			procedure= calledProc+"(?"+(dadConfig.getBooleanParameter("x-path-alias-flexible") ? ",?,?" : "")+")";
+		}
+		else
 		if (flexible)
 		{
 			calledProc= sqlInjectionIdentifier(pathInfo.substring(2));

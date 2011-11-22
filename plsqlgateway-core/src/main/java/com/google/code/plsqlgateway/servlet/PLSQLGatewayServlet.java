@@ -718,7 +718,10 @@ public class PLSQLGatewayServlet extends HttpServlet
 			  }  				  
 		}
 		else
-		if (request.getContentType()!=null&&request.getContentType().startsWith("application/json"))
+		if (request.getContentType()!=null
+            &&
+            !(request.getContentType().startsWith("application/x-www-form-urlencoded")
+            ||request.getContentType().startsWith("multipart/form-data")))
 		{
 			String[] body= getBody(request);
 			

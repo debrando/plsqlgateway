@@ -624,9 +624,16 @@ public class PLSQLGatewayServlet extends HttpServlet
 	{
         ServletFileUpload sfu= new ServletFileUpload(new OracleFileItemFactory(conn,intconfig,dadConfig));
         List items= sfu.parseRequest(rc);
-        HashMap uploadParams= new HashMap(items.size());          
+        HashMap uploadParams= new HashMap(request.getParameterMap());
         Iterator i= items.iterator();
-        
+        Iterator n= uploadParams.keySet().iterator();
+
+        while (n.hasNext())
+        {
+           String name= (String)n.next();
+           if (!names.contains(name)) names.add(name);
+        }
+
         while (i.hasNext())
         {
            OracleFileItem fi= (OracleFileItem)i.next();

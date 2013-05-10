@@ -178,6 +178,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 		}
 		
 		OracleConnection conn= null;
+	    PrintWriter pw= null;
 		
 		try 
 		{
@@ -239,7 +240,6 @@ public class PLSQLGatewayServlet extends HttpServlet
               logger.info("NOT AUTHORIZED by request-validation-function");
 			
 			OutputStream out= null;
-			PrintWriter pw= null;
 			boolean body= false;
 
 			while (caller.fetch(conn)>0)
@@ -316,7 +316,17 @@ public class PLSQLGatewayServlet extends HttpServlet
 		catch (Exception e)
 		{
 			logger.error("error uri: "+request.getRequestURI(), e);
-			throw new ServletException(e);
+            
+            if (dadConfig.getBooleanParameter("show-errors"))
+            {
+               if (pw==null)
+                 pw= response.getWriter();
+
+               e.printStackTrace(pw);
+               pw.flush();
+            }
+            else 
+			  throw new ServletException(e);
 		}
 		finally
 		{

@@ -78,64 +78,65 @@ public class DADProcedureCaller
 	    String sql= getSQL(flexible, alias, describe, conn);
 	    
 	    OracleCallableStatement stmt= (OracleCallableStatement) conn.prepareCall(sql);
-	    
-	    int parameterIndex= 1;
-	    stmt.setInt(parameterIndex++, cgienv[0].length);
-	    setVcArr(stmt, parameterIndex++, cgienv[0]);
-	    setVcArr(stmt, parameterIndex++, cgienv[1]);
 
-	    if (alias)
-	    {
-	    	stmt.setString(parameterIndex++, pathInfo.substring(pathInfo.indexOf('/', 1)));
-	    	
-	    	if (dadConfig.getBooleanParameter("x-path-alias-flexible"))
-	    	{
-			    String[][] pars= getParameters();
-			    setVcArr(stmt, parameterIndex++, pars[0]);
-			    setVcArr(stmt, parameterIndex++, pars[1]);
-	    	}
-	    }
-	    else
-	    if (flexible) // flexible parameter passing
-	    {
-		    String[][] pars= getParameters();
-		    setVcArr(stmt, parameterIndex++, pars[0]);
-		    setVcArr(stmt, parameterIndex++, pars[1]);
-	    }
-	    else
-	    {
-            int idx= 0;
-            
-			for (Object val: values)
-			{
-				if (val instanceof String[])
-				{
-				   String[] aval= (String[])val;
-				   
-				   if (types[idx]==Types.OTHER)
-					   setVcArr(stmt, parameterIndex++, aval);
-				   else
-					   stmt.setString(parameterIndex++, aval[0]);
-					   
-				}
-				else
-				   stmt.setString(parameterIndex++, (String)val);
-				
-				idx++;
-			}
-	    }
-	    
-	    int docidx= parameterIndex++;
-
-	    stmt.registerOutParameter(docidx, OracleTypes.VARCHAR);
-	    int retcodeidx= parameterIndex++;
-
-	    stmt.registerOutParameter(retcodeidx, OracleTypes.INTEGER);
-	    
-		long before= System.currentTimeMillis();
-        
 		try
 		{
+            
+            int parameterIndex= 1;
+            stmt.setInt(parameterIndex++, cgienv[0].length);
+            setVcArr(stmt, parameterIndex++, cgienv[0]);
+            setVcArr(stmt, parameterIndex++, cgienv[1]);
+
+            if (alias)
+            {
+                stmt.setString(parameterIndex++, pathInfo.substring(pathInfo.indexOf('/', 1)));
+                
+                if (dadConfig.getBooleanParameter("x-path-alias-flexible"))
+                {
+                    String[][] pars= getParameters();
+                    setVcArr(stmt, parameterIndex++, pars[0]);
+                    setVcArr(stmt, parameterIndex++, pars[1]);
+                }
+            }
+            else
+            if (flexible) // flexible parameter passing
+            {
+                String[][] pars= getParameters();
+                setVcArr(stmt, parameterIndex++, pars[0]);
+                setVcArr(stmt, parameterIndex++, pars[1]);
+            }
+            else
+            {
+                int idx= 0;
+                
+                for (Object val: values)
+                {
+                    if (val instanceof String[])
+                    {
+                       String[] aval= (String[])val;
+                       
+                       if (types[idx]==Types.OTHER)
+                           setVcArr(stmt, parameterIndex++, aval);
+                       else
+                           stmt.setString(parameterIndex++, aval[0]);
+                           
+                    }
+                    else
+                       stmt.setString(parameterIndex++, (String)val);
+                    
+                    idx++;
+                }
+            }
+            
+            int docidx= parameterIndex++;
+
+            stmt.registerOutParameter(docidx, OracleTypes.VARCHAR);
+            int retcodeidx= parameterIndex++;
+
+            stmt.registerOutParameter(retcodeidx, OracleTypes.INTEGER);
+            
+            long before= System.currentTimeMillis();
+        
 	        stmt.execute();
 
 		    long after= System.currentTimeMillis();
@@ -150,10 +151,6 @@ public class DADProcedureCaller
 	      	else
 	      	if (retcode==2)
 	      		unauthorized= true;
-		}
-		catch (Exception ex)
-		{
-			throw ex;
 		}
         finally
         {
@@ -204,21 +201,27 @@ public class DADProcedureCaller
 	throws Exception
 	{
 	    OracleCallableStatement stmt= (OracleCallableStatement) conn.prepareCall(intconfig.getSQLstmt("OWA_FETCH"));
-        
-	    int ROWS4FETCH= 50;
-	    stmt.setInt(1, ROWS4FETCH); // rows for fetch
-	    stmt.registerOutParameter(1, OracleTypes.INTEGER);
-	    stmt.registerIndexTableOutParameter(2, 50, OracleTypes.VARCHAR, 256);
-	    
-	    stmt.execute();
-	    
-	    lines= (String[])stmt.getPlsqlIndexTable(2); 
-	    
-	    int retval= stmt.getInt(1);
-	    
-	    stmt.close();
-	    
-		return retval;
+
+        try
+        {
+            int ROWS4FETCH= 50;
+            stmt.setInt(1, ROWS4FETCH); // rows for fetch
+            stmt.registerOutParameter(1, OracleTypes.INTEGER);
+            stmt.registerIndexTableOutParameter(2, 50, OracleTypes.VARCHAR, 256);
+            
+            stmt.execute();
+            
+            lines= (String[])stmt.getPlsqlIndexTable(2); 
+            
+            int retval= stmt.getInt(1);
+            
+		    return retval;
+        }
+        finally
+        {
+	        stmt.close();
+        }
+
 	}
 	
 	public boolean isDocument()
@@ -618,17 +621,22 @@ public class DADProcedureCaller
 		
 		OracleCallableStatement stmt= (OracleCallableStatement)conn.prepareCall(intconfig.getSQLstmt("TRANSLATE_SYNONYM"));
 		
-		setVcArr(stmt, 1, toupper(parts));			
-		
-		stmt.registerOutParameter(2, OracleTypes.VARCHAR);
-		
-		stmt.execute();
-		
-		String retval= stmt.getString(2); 
-		
-		stmt.close();
-		
-	    return retval;
+        try
+        {
+            setVcArr(stmt, 1, toupper(parts));			
+            
+            stmt.registerOutParameter(2, OracleTypes.VARCHAR);
+            
+            stmt.execute();
+            
+            String retval= stmt.getString(2); 
+            
+            return retval;
+        }
+        finally
+        {
+            stmt.close();
+        }
 	}
 
 	@SuppressWarnings("unchecked")

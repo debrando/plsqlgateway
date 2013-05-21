@@ -506,30 +506,38 @@ public class PLSQLGatewayServlet extends HttpServlet
 		
 		OracleCallableStatement stmt= (OracleCallableStatement) conn.prepareCall(intconfig.getSQLstmt("AUTHORIZE").replaceFirst("#pkg#", pkg.replaceFirst("^!", "")));
 
-		stmt.setInt(1, cgienv[0].length);
-	    setVcArr(stmt, 2, cgienv[0]);
-	    setVcArr(stmt, 3, cgienv[1]);
+        int retcode= 0;
+        String realm= null;
 
-		stmt.setString(4, user);
-		stmt.setString(5, password);
-		
-		if (dadConfig.getBooleanParameter("x-forwarded-for"))
-     		stmt.setString(6, request.getHeader("X-Forwarded-For"));
-		else
-     		stmt.setString(6, request.getRemoteAddr());
-		
- 		stmt.setString(7, request.getRemoteHost());
- 		
- 		stmt.registerOutParameter(8, OracleTypes.NUMBER);
- 		stmt.registerOutParameter(9, OracleTypes.VARCHAR);
-		
-        stmt.execute();		
-		
-        int retcode = stmt.getInt(8);
-        String realm = stmt.getString(9);
-        
-        stmt.close();
-        
+        try
+        {
+            stmt.setInt(1, cgienv[0].length);
+            setVcArr(stmt, 2, cgienv[0]);
+            setVcArr(stmt, 3, cgienv[1]);
+
+            stmt.setString(4, user);
+            stmt.setString(5, password);
+            
+            if (dadConfig.getBooleanParameter("x-forwarded-for"))
+                stmt.setString(6, request.getHeader("X-Forwarded-For"));
+            else
+                stmt.setString(6, request.getRemoteAddr());
+            
+            stmt.setString(7, request.getRemoteHost());
+            
+            stmt.registerOutParameter(8, OracleTypes.NUMBER);
+            stmt.registerOutParameter(9, OracleTypes.VARCHAR);
+            
+            stmt.execute();		
+            
+            retcode = stmt.getInt(8);
+            realm = stmt.getString(9);
+        }
+        finally
+        {
+            stmt.close();
+        } 
+
         if (retcode==0)
         {
 	        response.setHeader("WWW-Authenticate", "Basic realm=\""+realm+"\"");

@@ -182,7 +182,10 @@ public class PLSQLGatewayServlet extends HttpServlet
 		
 		try 
 		{
-            conn= getConnection(ds,dadName);			
+            conn= getConnection(ds, dadName, dadConfig, request, response);			
+
+            if (conn==null) return; // Basic auth
+
 			if (dadConfig.getBooleanParameter("timed-statistics"))
 				logger.fatal((System.currentTimeMillis()-before)+"ms: got connection");
 			
@@ -339,27 +342,83 @@ public class PLSQLGatewayServlet extends HttpServlet
         	logger.fatal((after-before)+"ms: "+request.getRequestURL());
 	}
 
-	private OracleConnection getConnection(DataSource ds, String dadName)
+	private OracleConnection getConnection(DataSource ds, 
+                                           String dadName,
+                                           EntityConfig dadConfig,
+                                           HttpServletRequest request,
+                                           HttpServletResponse response)
 	throws Exception
 	{
-		OracleConnection conn= null;
-		try
-		{
-			conn= (OracleConnection)ds.getConnection();
-		}
-		catch (Exception ex)
-		{
-			try
-			{
-				ds= reloadDADDataSource(dadName);
-				conn= (OracleConnection)ds.getConnection();
-			}
-			catch (Exception ex2)
-			{
-				logger.fatal("reinitializing DAD",ex2);
-				throw ex; // throws the first exception that was the inital cause 
-			}
-		}
+        String user= null;
+        String password= null;
+        OracleConnection conn= null;
+
+		if ("Basic".equals(dadConfig.getParameter("authentication-mode")))
+        {
+            String auth= request.getHeader("Authorization");
+            
+            if (auth!=null)
+            {
+                String[] parts= auth.split(" ");
+                
+                if (parts.length==2&&parts[0].equalsIgnoreCase("Basic"))
+                {
+                    String userPass= new String(new BASE64Decoder().decodeBuffer(parts[1]));
+                    
+                    int sep= userPass.indexOf(':');
+                    
+                    if (sep!=-1)
+                    {
+                          user = userPass.substring(0, sep);
+                          password = userPass.substring(sep+1);
+                    }	
+                }
+            }
+            else
+            {
+                response.setHeader("WWW-Authenticate", "Basic realm=\""+dadName+"\"");
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+                return null;
+            }
+
+            try
+            {
+                conn= (OracleConnection)ds.getConnection(user,password);
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    ds= reloadDADDataSource(dadName);
+                    conn= (OracleConnection)ds.getConnection(user,password);
+                }
+                catch (Exception ex2)
+                {
+                    logger.fatal("reinitializing DAD",ex2);
+                    throw ex; // throws the first exception that was the inital cause 
+                }
+            }
+        }
+        else
+        {
+            try
+            {
+                conn= (OracleConnection)ds.getConnection();
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    ds= reloadDADDataSource(dadName);
+                    conn= (OracleConnection)ds.getConnection();
+                }
+                catch (Exception ex2)
+                {
+                    logger.fatal("reinitializing DAD",ex2);
+                    throw ex; // throws the first exception that was the inital cause 
+                }
+            }
+        }
 		
 		conn.setAutoCommit(false);
 		return conn;
@@ -373,7 +432,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 		try 
 		{
 			
-            conn= getConnection(ds,dadName);			
+            conn= getConnection(ds,dadName,dadConfig,request,response);
 			
 			PreparedStatement stmt= conn.prepareStatement("select XDBURIType(?).getBlob() content from dual");
 			stmt.setString(1, path);
@@ -429,7 +488,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 		{
 			out= response.getWriter();
 			out.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-            conn= getConnection(ds,dadName);			
+            conn= getConnection(ds,dadName,dadConfig,request,response);			
 			
 			PreparedStatement stmt= conn.prepareStatement("select * from dual");
 			ResultSet rs= stmt.executeQuery();

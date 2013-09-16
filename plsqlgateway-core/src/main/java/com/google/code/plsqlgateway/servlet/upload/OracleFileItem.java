@@ -54,7 +54,7 @@ public class OracleFileItem implements FileItem {
 		               try
 		               {
 		                       documentId= "F"+Math.random()+"/"+fileName;
-		                       stmt= (OracleCallableStatement) conn.prepareCall(intconfig.getSQLstmt("OWA_UPLOAD").replaceFirst("#table#", dadConfig.getParameter("document-table-name")));
+		                       stmt= (OracleCallableStatement) conn.prepareCall(intconfig.getSQLstmt("OWA_UPLOAD").replaceFirst("#table#", dadConfig.getParameter("document-table-name").replace("$","\\$")));
 		                       stmt.setString(1, documentId);
 		                       stmt.setString(2, contentType);
 		                       stmt.registerOutParameter(3, OracleTypes.BLOB);
@@ -73,8 +73,8 @@ public class OracleFileItem implements FileItem {
 		               try
 		               {
 		                       stmt= (OracleCallableStatement) conn.prepareCall(intconfig.getSQLstmt("OWA_UPLOAD_ID")
-		                    		                        .replaceFirst("#table#", dadConfig.getParameter("document-table-name"))
-		                    		                        .replaceFirst("#sequence#", dadConfig.getParameter("document-upload-seq")));
+		                    		                        .replaceFirst("#table#", dadConfig.getParameter("document-table-name").replace("$","\\$"))
+		                    		                        .replaceFirst("#sequence#", dadConfig.getParameter("document-upload-seq").replace("$","\\$")));
 		                       stmt.setString(1, fileName);
 		                       stmt.setString(2, contentType);
 		                       stmt.registerOutParameter(3, OracleTypes.BLOB);

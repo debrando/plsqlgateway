@@ -132,13 +132,13 @@ public class OracleFileItem implements FileItem {
 
          		if (!"id".equals(dadConfig.getParameter("document-upload-mode")))   
          		{
-		            OraclePreparedStatement stmt= (OraclePreparedStatement) conn.prepareStatement(intconfig.getSQLstmt("OWA_UPLOAD_SIZE").replaceFirst("#table#", dadConfig.getParameter("document-table-name")));
+		            OraclePreparedStatement stmt= (OraclePreparedStatement) conn.prepareStatement(intconfig.getSQLstmt("OWA_UPLOAD_SIZE").replaceFirst("#table#", dadConfig.getParameter("document-table-name").replace("$","\\$")));
 		            stmt.setString(1,documentId);
 		            stmt.execute();
          		}
          		else
          		{
-		            OraclePreparedStatement stmt= (OraclePreparedStatement) conn.prepareStatement(intconfig.getSQLstmt("OWA_UPLOAD_ID_SIZE").replaceFirst("#table#", dadConfig.getParameter("document-table-name")));
+		            OraclePreparedStatement stmt= (OraclePreparedStatement) conn.prepareStatement(intconfig.getSQLstmt("OWA_UPLOAD_ID_SIZE").replaceFirst("#table#", dadConfig.getParameter("document-table-name").replace("$","\\$")));
 		            stmt.setString(1,documentId);
 		            stmt.execute();
          		}

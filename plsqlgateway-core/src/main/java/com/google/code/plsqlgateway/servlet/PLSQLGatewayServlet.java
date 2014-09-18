@@ -54,11 +54,13 @@ public class PLSQLGatewayServlet extends HttpServlet
 {
 	private static final long serialVersionUID = 1L;
 	private static final Logger logger= Logger.getLogger(PLSQLGatewayServlet.class);
+    private static final String DEV_USER= System.getProperty("com.google.code.plsqlgateway.REMOTE_USER");
 
 	private ServletContext ctx;
     private Configuration config;
     private EntityConfig intconfig;
     private EntityConfig genconfig;
+
     
     /**
      * Default constructor. 
@@ -762,6 +764,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 		m.put("REMOTE_HOST", request.getRemoteHost());  	
 		m.put("SERVER_PROTOCOL", request.getProtocol());
 		m.put("REQUEST_PROTOCOL", request.getScheme());
+		m.put("QUERY_STRING", request.getQueryString());
 		m.put("REMOTE_USER", getRemoteUser(request));
 		m.put("HTTP_CONTENT_LENGTH", String.valueOf(request.getContentLength()));
 		m.put("HTTP_CONTENT_TYPE", request.getContentType());
@@ -841,9 +844,15 @@ public class PLSQLGatewayServlet extends HttpServlet
   
     private static final String getRemoteUser(HttpServletRequest request)
     {
-       String user= (request.getUserPrincipal()==null ? request.getRemoteUser() : request.getUserPrincipal().getName()); 
+       String user= DEV_USER;
+ 
        if (user==null)
-         user= (String)request.getAttribute("REMOTE_USER");
+       {
+         user= (request.getUserPrincipal()==null ? request.getRemoteUser() : request.getUserPrincipal().getName()); 
+
+         if (user==null)
+            user= (String)request.getAttribute("REMOTE_USER");
+       }
 
        return user;
     }

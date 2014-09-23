@@ -744,7 +744,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 	throws IOException
 	{
 		HashMap<String,String> m= new HashMap<String,String>(32);
-		int len= 32;
+		int len= 33;
 		
 		m.put("PLSQL_GATEWAY", "com.google.code.plsqlgateway");
 		m.put("GATEWAY_VERSION", String.valueOf(serialVersionUID));

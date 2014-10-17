@@ -76,6 +76,9 @@ public class DADProcedureCaller
 	    boolean alias= pathInfo.startsWith("/"+pathAlias+"/");
 
 	    String sql= getSQL(flexible, alias, describe, conn);
+
+        if (dadConfig.getBooleanParameter("x-sql-debug"))
+	      logger.fatal(sql);
 	    
 	    OracleCallableStatement stmt= (OracleCallableStatement) conn.prepareCall(sql);
 
@@ -111,19 +114,18 @@ public class DADProcedureCaller
                 
                 for (Object val: values)
                 {
+                    String[] aval;
+
                     if (val instanceof String[])
-                    {
-                       String[] aval= (String[])val;
-                       
-                       if (types[idx]==Types.OTHER)
-                           setVcArr(stmt, parameterIndex++, aval);
-                       else
-                           stmt.setString(parameterIndex++, aval[0]);
-                           
-                    }
+                      aval= (String[])val;
                     else
-                       stmt.setString(parameterIndex++, (String)val);
+                      aval= new String[]{(String)val};
                     
+                    if (types[idx]==Types.OTHER)
+                      setVcArr(stmt, parameterIndex++, aval);
+                    else
+                      stmt.setString(parameterIndex++, aval[0]);
+
                     idx++;
                 }
             }

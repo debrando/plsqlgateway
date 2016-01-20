@@ -23,7 +23,7 @@
          and install in your local repository:
          mvn install:install-file -DgroupId=com.oracle -DartifactId=ojdbc6 -Dversion=11.2.0.2.0 -Dpackaging=jar -Dfile=ojdbc6.jar
       -->
-	  <groupId>com.oracle</groupId>
+	  <groupId>it.cineca.ugov.3rdparty</groupId>
 	  <artifactId>ojdbc6</artifactId>
 	  <version>11.2.0.2.0</version>
 	  <scope>provided</scope>

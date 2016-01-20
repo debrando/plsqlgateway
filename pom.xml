@@ -8,6 +8,21 @@
 	    <version>6</version>
     </parent>
 
+    <properties>
+        <source.encoding>UTF-8</source.encoding>
+        <java.version>1.6</java.version>
+    </properties>
+    <distributionManagement>
+        <repository>
+            <id>releases</id>
+            <url>http://nexus.u-gov.it/nexus/content/repositories/releases</url>
+        </repository>
+        <snapshotRepository>
+            <id>snapshots</id>
+            <url>http://nexus.u-gov.it/nexus/content/repositories/snapshots</url>
+        </snapshotRepository>
+    </distributionManagement>
+
 	<groupId>com.google.code.plsqlgateway</groupId>
 	<artifactId>plsqlgateway</artifactId>
 	<version>1.13-SNAPSHOT</version>
@@ -23,9 +38,7 @@
 	    </license>
     </licenses>
     <scm>
-	    <url>http://code.google.com/p/plsqlgateway/source/browse/trunk/</url>
-        <connection>scm:svn:http://plsqlgateway.googlecode.com/svn/trunk/</connection>
-        <developerConnection>scm:svn:https://plsqlgateway.googlecode.com/svn/trunk/</developerConnection>
+	    <url>https://github.com/debrando/plsqlgateway.git</url>
     </scm>
 	<developers>
 	    <developer>
@@ -33,6 +46,11 @@
 	      <name>Andrea Amerigo Aristodemo Gariboldi</name>
 	      <email>andrea.gariboldi@gmail.com</email>
 	    </developer>
+        <developer>
+            <id>debrando</id>
+            <name>Denis Brandolini</name>
+            <email>d.brandolini@cineca.it</email>
+        </developer>
 	</developers>
 
     <modules>

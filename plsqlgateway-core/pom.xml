@@ -5,10 +5,9 @@
   <parent>
   	<groupId>com.google.code.plsqlgateway</groupId>
   	<artifactId>plsqlgateway</artifactId>
-  	<version>1.13</version>
+  	<version>1.14-SNAPSHOT</version>
   </parent>
   
-   <groupId>com.google.code.plsqlgateway</groupId>
    <artifactId>plsqlgateway-core</artifactId>
    <name>plsqlgateway-core</name>
    
@@ -44,7 +43,8 @@
 	<dependency>
 	    <groupId>log4j</groupId>
 	    <artifactId>log4j</artifactId>
-	    <version>1.2.8</version>
+	    <version>1.2.17</version>
+        <scope>provided</scope>
 	</dependency>
 
     <dependency>

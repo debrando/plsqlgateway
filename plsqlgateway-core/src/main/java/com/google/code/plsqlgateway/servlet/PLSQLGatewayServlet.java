@@ -147,14 +147,14 @@ public class PLSQLGatewayServlet extends HttpServlet
 			pathInfo= request.getPathInfo();
 			dadName= dadPath.substring(1);
 		}
-		
-		if (logger.isDebugEnabled())
-			logger.debug("dadPath: "+dadPath+" pathInfo: "+pathInfo+" dadName: "+dadName);
+
+		logger.info(String.format("doGet: dadPath '%s', pathInfo '%s', dadName '%s'", dadPath, pathInfo, dadName));
 		        
 		DataSource ds= getDADDataSource(dadName);
 		
 		if (ds==null)
 		{
+            logger.info(String.format("doGet: return not found"));
 			response.sendError(HttpServletResponse.SC_NOT_FOUND);
 			return;
 		}
@@ -163,18 +163,22 @@ public class PLSQLGatewayServlet extends HttpServlet
 		
 		if (pathInfo==null||pathInfo.equals("/"))
 		{
-			response.sendRedirect(dadPath+"/"+(dadConfig.getParameter("default-page")!=null ? dadConfig.getParameter("default-page") : "home"));
+            String where = String.format("%s/%s", dadPath, dadConfig.getParameter("default-page") != null ? dadConfig.getParameter("default-page") : "home");
+            logger.info(String.format("doGet: return redirect to %s", where));
+			response.sendRedirect(where);
 			return;
 		}
 		else
 		if (pathInfo.equals("/_monitor"))
 		{
+            logger.info(String.format("doGet: return monitor"));
 			doMonitor(request,response,ds,dadConfig,dadName);
 			return;
 		} 
 		else
 		if (pathInfo.startsWith("/xdb"))
 		{
+            logger.info(String.format("doGet: return XDB file %s", pathInfo.substring(4)));
 			sendXDBFile(request,response,ds,dadConfig,dadName,pathInfo.substring(4));
 			return;
 		}
@@ -189,13 +193,14 @@ public class PLSQLGatewayServlet extends HttpServlet
             if (conn==null) return; // Basic auth
 
 			if (dadConfig.getBooleanParameter("timed-statistics"))
-				logger.fatal((System.currentTimeMillis()-before)+"ms: got connection");
+				logger.fatal(String.format("doGet: %dms: got connection", System.currentTimeMillis()-before));
 			
 			String[][] cgienv= getCgiEnv(request,dadName,pathInfo,dadPath,dadConfig,ctx);
 			
 			if (!authorize(request, response, conn, pathInfo, dadConfig, cgienv))
 			{
-				closeConnection(conn, dadConfig);
+                logger.info("doGet: return unauthorized");
+				closeConnection(conn, dadConfig, "doGet");
 				return;
 			}
 
@@ -242,7 +247,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 			caller.call(conn);
 			
 			if (!caller.isAuthorized())
-              logger.info("NOT AUTHORIZED by request-validation-function");
+                logger.info("doGet: NOT AUTHORIZED by request-validation-function");
 			
 			OutputStream out= null;
 			boolean body= false;
@@ -297,12 +302,14 @@ public class PLSQLGatewayServlet extends HttpServlet
 				
 				if (pw!=null) pw.flush();
 			}
+
+            logger.info(String.format("doGet: returned %d bytes", response.getBufferSize()));
 			
 			if (caller.isDocument())
 			{
 			   InputStream in= caller.getDocument(conn); 
 			   byte[] buff= new byte[response.getBufferSize()];
-			   int count= 0;
+			   int count;
 			   
 			   while ((count=in.read(buff))>0)
                   out.write(buff,0,count);
@@ -315,12 +322,12 @@ public class PLSQLGatewayServlet extends HttpServlet
 		} 
 		catch (SQLInjectionException sie)
 		{
-			logger.error(sie.getMessage()+" uri: "+request.getRequestURI());
+			logger.error(String.format("doGet: SQLInjection on %s: %s", request.getRequestURI(), sie.getMessage()));
 			response.sendError(HttpServletResponse.SC_BAD_REQUEST);
 		}
 		catch (Exception e)
 		{
-			logger.error("error uri: "+request.getRequestURI(), e);
+			logger.error("doGet: error uri "+request.getRequestURI(), e);
             
             if (dadConfig.getBooleanParameter("show-errors"))
             {
@@ -333,15 +340,13 @@ public class PLSQLGatewayServlet extends HttpServlet
             else 
 			  throw new ServletException(e);
 		}
-		finally
-		{
-			if (conn!=null)
-			  try { closeConnection(conn, dadConfig); } catch (SQLException e) {}
+		finally {
+            closeConnection(conn, dadConfig, "doGet");
 		}
 		
 		long after= System.currentTimeMillis();
         if (dadConfig.getBooleanParameter("timed-statistics"))
-        	logger.fatal((after-before)+"ms: "+request.getRequestURL());
+        	logger.fatal(String.format("doGet: %d ms for %s", after-before, request.getRequestURL()));
 	}
 
 	private OracleConnection getConnection(DataSource ds, 
@@ -353,9 +358,9 @@ public class PLSQLGatewayServlet extends HttpServlet
 	{
         String user= null;
         String password= null;
-        OracleConnection conn= null;
+        OracleConnection conn;
 
-		if ("Basic".equals(dadConfig.getParameter("authentication-mode")))
+        if ("Basic".equals(dadConfig.getParameter("authentication-mode")))
         {
             String auth= request.getHeader("Authorization");
             
@@ -396,7 +401,7 @@ public class PLSQLGatewayServlet extends HttpServlet
                 }
                 catch (Exception ex2)
                 {
-                    logger.fatal("reinitializing DAD",ex2);
+                    logger.fatal("getConnection: reinitializing DAD",ex2);
                     throw ex; // throws the first exception that was the inital cause 
                 }
             }
@@ -416,13 +421,14 @@ public class PLSQLGatewayServlet extends HttpServlet
                 }
                 catch (Exception ex2)
                 {
-                    logger.fatal("reinitializing DAD",ex2);
+                    logger.fatal("getConnection: reinitializing DAD",ex2);
                     throw ex; // throws the first exception that was the inital cause 
                 }
             }
         }
-		
+
 		conn.setAutoCommit(false);
+        logger.debug("getConnection: provided a db connection on " + dadName);
 		return conn;
 	}
 
@@ -438,43 +444,43 @@ public class PLSQLGatewayServlet extends HttpServlet
 			
 			PreparedStatement stmt= conn.prepareStatement("select XDBURIType(?).getBlob() content from dual");
 			stmt.setString(1, path);
-			OracleResultSet rs= (OracleResultSet)stmt.executeQuery();
-			
-			if (rs.next())
-			{
-				BLOB b= rs.getBLOB(1);
-				
-				if (b==null)
-	    			   response.sendError(HttpServletResponse.SC_FORBIDDEN);
-				else
-				{
-					byte[] buff= new byte[1024];
-					int count= 0;
-					InputStream in= b.getBinaryStream();
-					out= response.getOutputStream();
-					
-					while ((count=in.read(buff))>0)
-						out.write(buff, 0, count);
-				
-					out.flush();
-				}
-			}
-			else
-    			   response.sendError(HttpServletResponse.SC_FOUND);
-			
-			rs.close();
-			stmt.close();
+            try {
+                OracleResultSet rs = (OracleResultSet) stmt.executeQuery();
+
+                try {
+                    if (rs.next()) {
+                        BLOB b = rs.getBLOB(1);
+
+                        if (b == null)
+                            response.sendError(HttpServletResponse.SC_FORBIDDEN);
+                        else {
+                            byte[] buff = new byte[1024];
+                            int count = 0;
+                            InputStream in = b.getBinaryStream();
+                            out = response.getOutputStream();
+
+                            while ((count = in.read(buff)) > 0)
+                                out.write(buff, 0, count);
+
+                            out.flush();
+                        }
+                    } else {
+                        response.sendError(HttpServletResponse.SC_FOUND);
+                    }
+                } finally {
+                    rs.close();
+                }
+            } finally {
+                stmt.close();
+            }
 		}
 		catch (Exception e)
 		{
-			logger.error("monitor service", e);
+			logger.error("sendXDBFile", e);
 			try { response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); } catch (IOException ie) {}
 		}
-	    finally
-	    {
-	    	    if (conn!=null)
-				try { closeConnection(conn, dadConfig); } catch (SQLException se) { logger.error("closing monitor connection", se); }
-
+	    finally {
+            closeConnection(conn, dadConfig, "sendXDBFile");
 		    if (out!=null)
 				try { out.close(); } catch (IOException e) {}
 	    }
@@ -493,27 +499,30 @@ public class PLSQLGatewayServlet extends HttpServlet
             conn= getConnection(ds,dadName,dadConfig,request,response);			
 			
 			PreparedStatement stmt= conn.prepareStatement("select * from dual");
-			ResultSet rs= stmt.executeQuery();
-			
-			if (rs.next())
-    			out.println("<ok/>");
-			else
-    			out.println("<ko/>");
-			
-			rs.close();
-			stmt.close();
+            try {
+                ResultSet rs= stmt.executeQuery();
+                try {
+                    if (rs.next())
+                        out.println("<ok/>");
+                    else
+                        out.println("<ko/>");
+                } finally {
+                    rs.close();
+                }
+            } finally {
+                if (stmt != null) {
+                    stmt.close();
+                }
+            }
 		}
 		catch (Exception e)
 		{
-			logger.error("monitor service", e);
+			logger.error("doMonitor", e);
 			if (out!=null) out.println("<ko><![CDATA["+e.getMessage()+"]]></ko>");
 		}
-	    finally
-	    {
-	    	if (conn!=null)
-				try { closeConnection(conn, dadConfig); } catch (SQLException se) { logger.error("closing monitor connection", se); }
-
-		    if (out!=null) 
+        finally {
+            closeConnection(conn, dadConfig, "doMonitor");
+		    if (out!=null)
 		    	out.flush();
 	    }
 	
@@ -899,22 +908,29 @@ public class PLSQLGatewayServlet extends HttpServlet
 	    return retval;
 	}
 	
-    private void closeConnection(Connection conn, EntityConfig dadConfig)
-    throws SQLException
+    private void closeConnection(Connection conn, EntityConfig dadConfig, String description)
     {
-    	try
-    	{
-	    	 if (dadConfig.getBooleanParameter("reset-packages"))
-	    		 resetPackages(conn);
+        if (conn == null) {
+            logger.debug(String.format("closeConnection: Connection already null for %s", description));
+            return;
+        }
+    	try {
+	    	 if (dadConfig.getBooleanParameter("reset-packages")) {
+                 resetPackages(conn);
+                 logger.debug(String.format("closeConnection: Resetted db packages for %s", description));
+             }
     	}
-    	catch (SQLException ex)
-    	{
-    		logger.error("resetting package states",ex);
-    		throw ex;
+    	catch (SQLException ex) {
+            logger.error(String.format("closeConnection: Cannot reset db packages for %s", description), ex);
     	}
-    	finally
-    	{
-           conn.close();
+    	finally {
+            try {
+                conn.close();
+                logger.debug(String.format("closeConnection: Closed a db connection for %s", description));
+            }
+            catch (Exception e) {
+                logger.error(String.format("closeConnection: Cannot close a db connection for %s", description));
+            }
     	}
     }
 

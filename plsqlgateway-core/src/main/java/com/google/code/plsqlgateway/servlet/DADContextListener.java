@@ -25,6 +25,7 @@ public class DADContextListener implements ServletContextListener
 	@SuppressWarnings("unchecked")
 	public void contextDestroyed(ServletContextEvent event)
 	{
+        logger.info("destroy DAD contex");
 		ServletContext ctx= event.getServletContext();
 		Configuration config= Configuration.getInstance(ctx);
 		EntityConfig general= config.getGeneral();
@@ -46,6 +47,7 @@ public class DADContextListener implements ServletContextListener
 	@SuppressWarnings("unchecked")
 	public void contextInitialized(ServletContextEvent event)
 	{
+        logger.info("init DAD contex");
 		ServletContext ctx= event.getServletContext();
 		Configuration config= Configuration.getInstance(ctx);
 		
@@ -105,6 +107,7 @@ public class DADContextListener implements ServletContextListener
 	private static DataSource lookupDataSource(String jndiName)
 	throws NamingException 
 	{
+		logger.info("DAD lookup from jndi " + jndiName);
 		InitialContext ic= new InitialContext();
 		DataSource ds= (DataSource) ic.lookup(jndiName);
 		ic.close();
@@ -138,6 +141,6 @@ public class DADContextListener implements ServletContextListener
 		  ds.setExplicitCachingEnabled(dbconfig.getBooleanParameter("explicit-caching"));
 		  ds.setConnectionCachingEnabled(false);
 		  ds.setConnectionProperties(dbconfig.getPropertiesParameter("connection-properties"));
-	}	
+	}
 	
 }

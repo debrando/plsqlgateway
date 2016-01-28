@@ -66,7 +66,7 @@ public class DADProcedureCaller
 	    String sql= getSQL(flexible, alias, describe, conn);
 
         if (dadConfig.getBooleanParameter("x-sql-debug"))
-			logger.info(String.format("DAD execution: %s", sql.replaceAll("\\s+", " ")));
+			logger.info(String.format("DAD execution on %s: %s", pathInfo, sql.replaceAll("\\s+", " ")));
 
 	    OracleCallableStatement stmt= (OracleCallableStatement) conn.prepareCall(sql);
 
@@ -129,7 +129,8 @@ public class DADProcedureCaller
         
 	        stmt.execute();
 
-	        logger.info(String.format("_call: db resource %s took %dms", request.getPathInfo(), System.currentTimeMillis()-before));
+            if (dadConfig.getBooleanParameter("x-sql-debug"))
+	            logger.info(String.format("_call: db resource %s took %dms", request.getPathInfo(), System.currentTimeMillis()-before));
 		    
 			int retcode= stmt.getInt(retcodeidx);
 

@@ -131,7 +131,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 			dadName= dadPath.substring(1);
 		}
 
-		logger.info(String.format("doGet: dadPath '%s', pathInfo '%s', dadName '%s'", dadPath, pathInfo, dadName));
+		logger.debug(String.format("doGet: dadPath '%s', pathInfo '%s', dadName '%s'", dadPath, pathInfo, dadName));
 		        
 		DataSource ds= getDADDataSource(dadName);
 		

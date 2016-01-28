@@ -1,22 +1,22 @@
 package com.google.code.plsqlgateway.servlet;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.sql.CallableStatement;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
+import com.google.code.eforceconfig.EntityConfig;
+import com.google.code.plsqlgateway.config.Configuration;
+import com.google.code.plsqlgateway.dad.DADProcedureCaller;
+import com.google.code.plsqlgateway.servlet.upload.OracleFileItem;
+import com.google.code.plsqlgateway.servlet.upload.OracleFileItemFactory;
+import oracle.jdbc.OracleCallableStatement;
+import oracle.jdbc.OracleConnection;
+import oracle.jdbc.OracleResultSet;
+import oracle.jdbc.OracleTypes;
+import oracle.sql.BLOB;
+import org.apache.commons.fileupload.FileUpload;
+import org.apache.commons.fileupload.FileUploadException;
+import org.apache.commons.fileupload.RequestContext;
+import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.apache.commons.fileupload.servlet.ServletRequestContext;
+import org.apache.log4j.Logger;
+import sun.misc.BASE64Decoder;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
@@ -25,27 +25,10 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.sql.DataSource;
-
-import oracle.jdbc.OracleCallableStatement;
-import oracle.jdbc.OracleConnection;
-import oracle.jdbc.OracleResultSet;
-import oracle.jdbc.OracleTypes;
-import oracle.sql.BLOB;
-
-import org.apache.commons.fileupload.FileUpload;
-import org.apache.commons.fileupload.FileUploadException;
-import org.apache.commons.fileupload.RequestContext;
-import org.apache.commons.fileupload.servlet.ServletFileUpload;
-import org.apache.commons.fileupload.servlet.ServletRequestContext;
-import org.apache.log4j.Logger;
-
-import sun.misc.BASE64Decoder;
-
-import com.google.code.eforceconfig.EntityConfig;
-import com.google.code.plsqlgateway.config.Configuration;
-import com.google.code.plsqlgateway.dad.DADProcedureCaller;
-import com.google.code.plsqlgateway.servlet.upload.OracleFileItem;
-import com.google.code.plsqlgateway.servlet.upload.OracleFileItemFactory;
+import java.io.*;
+import java.sql.*;
+import java.util.*;
+import java.util.Map.Entry;
 
 /**
  * Servlet implementation class PLSQLGatewayServlet
@@ -154,7 +137,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 		
 		if (ds==null)
 		{
-            logger.info(String.format("doGet: return not found"));
+            logger.info("doGet: return not found");
 			response.sendError(HttpServletResponse.SC_NOT_FOUND);
 			return;
 		}
@@ -171,7 +154,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 		else
 		if (pathInfo.equals("/_monitor"))
 		{
-            logger.info(String.format("doGet: return monitor"));
+            logger.info("doGet: return monitor");
 			doMonitor(request,response,ds,dadConfig,dadName);
 			return;
 		} 
@@ -192,9 +175,6 @@ public class PLSQLGatewayServlet extends HttpServlet
 
             if (conn==null) return; // Basic auth
 
-			if (dadConfig.getBooleanParameter("timed-statistics"))
-				logger.fatal(String.format("doGet: %dms: got connection", System.currentTimeMillis()-before));
-			
 			String[][] cgienv= getCgiEnv(request,dadName,pathInfo,dadPath,dadConfig,ctx);
 			
 			if (!authorize(request, response, conn, pathInfo, dadConfig, cgienv))
@@ -212,7 +192,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 	        if (FileUpload.isMultipartContent(rc))
                 try
                 {
-                	    final ArrayList names= new ArrayList(); 
+                    final ArrayList names= new ArrayList();
                    	parameterMap= processMultipart(request, rc, conn, dadConfig, names);
                    	parameterNames= new Enumeration() 
                    	{
@@ -252,72 +232,64 @@ public class PLSQLGatewayServlet extends HttpServlet
 			OutputStream out= null;
 			boolean body= false;
 
-			while (caller.fetch(conn)>0)
-			{
-				String[] lines= caller.getLines();
-				String lastLine= "";
-				
-				for (String line: lines)
-				  if (body)
-					pw.write(line);
-				  else
-				  {
-					  if (line.equals("\n"))
-					  {  
-						body= true;
-						response.setCharacterEncoding("UTF-8");
-						out= response.getOutputStream();
-						pw= new PrintWriter(out);
-					  }
-					  else
-					  {
-						if (line.endsWith("\n"))
-						{
-							lastLine+= line;
-							String[] header= lastLine.split("\\: ");
-							
-							if (header.length==2)
-							{
-							    response.addHeader(header[0], header[1].substring(0, header[1].length()-1));
-							    
-							    if (header[0].equals("Location"))
-						    	    response.setStatus(HttpServletResponse.SC_FOUND);
-							    else
-							    if (header[0].equals("Status"))
-							    {
-							    	int pos= header[1].indexOf(" ");
-							    	String code= (pos==-1 ? header[1] : header[1].substring(0,pos));
-				    	       	    response.setStatus(Integer.parseInt(code));
-							    }
-							    
-							    lastLine= "";
-							}
-							
-						}
-						else
-							lastLine+= line;
-						
-					  }
-				  }
-				
-				if (pw!=null) pw.flush();
-			}
+            try {
+                while (caller.fetch(conn) > 0) {
+                    String[] lines = caller.getLines();
+                    String lastLine = "";
 
-            logger.info(String.format("doGet: returned %d bytes", response.getBufferSize()));
-			
-			if (caller.isDocument())
-			{
-			   InputStream in= caller.getDocument(conn); 
-			   byte[] buff= new byte[response.getBufferSize()];
-			   int count;
-			   
-			   while ((count=in.read(buff))>0)
-                  out.write(buff,0,count);
-			   
-			   in.close();
-			   out.flush();
-			   out.close();
-			}
+                    for (String line : lines)
+                        if (body)
+                            pw.write(line);
+                        else {
+                            if (line.equals("\n")) {
+                                body = true;
+                                response.setCharacterEncoding("UTF-8");
+                                out = response.getOutputStream();
+                                pw = new PrintWriter(out);
+                            } else {
+                                if (line.endsWith("\n")) {
+                                    lastLine += line;
+                                    String[] header = lastLine.split("\\: ");
+
+                                    if (header.length == 2) {
+                                        response.addHeader(header[0], header[1].substring(0, header[1].length() - 1));
+
+                                        if (header[0].equals("Location"))
+                                            response.setStatus(HttpServletResponse.SC_FOUND);
+                                        else if (header[0].equals("Status")) {
+                                            int pos = header[1].indexOf(" ");
+                                            String code = (pos == -1 ? header[1] : header[1].substring(0, pos));
+                                            response.setStatus(Integer.parseInt(code));
+                                        }
+
+                                        lastLine = "";
+                                    }
+
+                                } else
+                                    lastLine += line;
+
+                            }
+                        }
+
+                    if (pw != null) pw.flush();
+                }
+
+                if (out != null && caller.isDocument()) {
+                    InputStream in = caller.getDocument(conn);
+                    byte[] buff = new byte[response.getBufferSize()];
+                    int count;
+
+                    while ((count = in.read(buff)) > 0)
+                        out.write(buff, 0, count);
+
+                    in.close();
+                }
+            } finally {
+                if (out != null) {
+                    out.flush();
+                    out.close();
+                }
+            }
 			
 		} 
 		catch (SQLInjectionException sie)
@@ -343,10 +315,8 @@ public class PLSQLGatewayServlet extends HttpServlet
 		finally {
             closeConnection(conn, dadConfig, "doGet");
 		}
-		
-		long after= System.currentTimeMillis();
-        if (dadConfig.getBooleanParameter("timed-statistics"))
-        	logger.fatal(String.format("doGet: %d ms for %s", after-before, request.getRequestURL()));
+
+        logger.info(String.format("doGet: %s took %dms", request.getRequestURL(), System.currentTimeMillis()-before));
 	}
 
 	private OracleConnection getConnection(DataSource ds, 
@@ -356,6 +326,7 @@ public class PLSQLGatewayServlet extends HttpServlet
                                            HttpServletResponse response)
 	throws Exception
 	{
+        long before = System.currentTimeMillis();
         String user= null;
         String password= null;
         OracleConnection conn;
@@ -428,7 +399,7 @@ public class PLSQLGatewayServlet extends HttpServlet
         }
 
 		conn.setAutoCommit(false);
-        logger.debug("getConnection: provided a db connection on " + dadName);
+        logger.debug(String.format("getConnection: provided a db connection for %s in %dms", dadName, System.currentTimeMillis()-before));
 		return conn;
 	}
 
@@ -441,7 +412,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 		{
 			
             conn= getConnection(ds,dadName,dadConfig,request,response);
-			
+
 			PreparedStatement stmt= conn.prepareStatement("select XDBURIType(?).getBlob() content from dual");
 			stmt.setString(1, path);
             try {
@@ -455,7 +426,7 @@ public class PLSQLGatewayServlet extends HttpServlet
                             response.sendError(HttpServletResponse.SC_FORBIDDEN);
                         else {
                             byte[] buff = new byte[1024];
-                            int count = 0;
+                            int count;
                             InputStream in = b.getBinaryStream();
                             out = response.getOutputStream();
 
@@ -477,12 +448,18 @@ public class PLSQLGatewayServlet extends HttpServlet
 		catch (Exception e)
 		{
 			logger.error("sendXDBFile", e);
-			try { response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); } catch (IOException ie) {}
+			try { response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); }
+            catch (IOException ie) {
+                logger.error("sendXDBFile", ie);
+            }
 		}
 	    finally {
             closeConnection(conn, dadConfig, "sendXDBFile");
 		    if (out!=null)
-				try { out.close(); } catch (IOException e) {}
+				try { out.close(); }
+                catch (IOException e) {
+                    logger.error("sendXDBFile", e);
+                }
 	    }
 	}
 
@@ -510,9 +487,7 @@ public class PLSQLGatewayServlet extends HttpServlet
                     rs.close();
                 }
             } finally {
-                if (stmt != null) {
-                    stmt.close();
-                }
+                stmt.close();
             }
 		}
 		catch (Exception e)
@@ -573,43 +548,46 @@ public class PLSQLGatewayServlet extends HttpServlet
 		else
 		if (pparts.length==3)
 	        pkg= pparts[0]+"."+pparts[1];			
-		
-		OracleCallableStatement stmt= (OracleCallableStatement) conn.prepareCall(intconfig.getSQLstmt("AUTHORIZE").replaceFirst("#pkg#", pkg.replaceFirst("^!", "")));
+
+        String query;
+        try {
+            query = intconfig.getSQLstmt("AUTHORIZE").replaceFirst("#pkg#", pkg.replaceFirst("^!", ""));
+        } catch (NullPointerException ne) {
+            logger.error("authorize: wrong statement syntax");
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            return false;
+        }
 
         int retcode= 0;
         String realm= null;
-
-        try
-        {
+        OracleCallableStatement stmt = (OracleCallableStatement) conn.prepareCall(query);
+        try {
             stmt.setInt(1, cgienv[0].length);
             setVcArr(stmt, 2, cgienv[0]);
             setVcArr(stmt, 3, cgienv[1]);
 
             stmt.setString(4, user);
             stmt.setString(5, password);
-            
+
             if (dadConfig.getBooleanParameter("x-forwarded-for"))
                 stmt.setString(6, request.getHeader("X-Forwarded-For"));
             else
                 stmt.setString(6, request.getRemoteAddr());
-            
+
             stmt.setString(7, request.getRemoteHost());
-            
+
             stmt.registerOutParameter(8, OracleTypes.NUMBER);
             stmt.registerOutParameter(9, OracleTypes.VARCHAR);
-            
-            stmt.execute();		
-            
+
+            stmt.execute();
+
             retcode = stmt.getInt(8);
             realm = stmt.getString(9);
-        }
-        finally
-        {
+        } finally {
             stmt.close();
-        } 
+        }
 
-        if (retcode==0)
-        {
+        if (retcode==0) {
 	        response.setHeader("WWW-Authenticate", "Basic realm=\""+realm+"\"");
 			response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
      		return false;
@@ -692,8 +670,8 @@ public class PLSQLGatewayServlet extends HttpServlet
         {
         	String[] olda= (String[])par;
         	String[] newa= new String[olda.length+1];
-        	int i= 0;
-        	for (i = 0; i < olda.length; i++) 
+            int i = 0;
+        	for (; i < olda.length; i++)
         	   newa[i]= olda[i];
         	
         	newa[i]= value;
@@ -714,12 +692,10 @@ public class PLSQLGatewayServlet extends HttpServlet
         List items= sfu.parseRequest(rc);
         HashMap uploadParams= new HashMap(request.getParameterMap());
         Iterator i= items.iterator();
-        Iterator n= uploadParams.keySet().iterator();
 
-        while (n.hasNext())
-        {
-           String name= (String)n.next();
-           if (!names.contains(name)) names.add(name);
+        for (Object o : uploadParams.keySet()) {
+            String name = (String) o;
+            if (!names.contains(name)) names.add(name);
         }
 
         while (i.hasNext())
@@ -749,7 +725,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 		return (DataSource) ctx.getAttribute(DADContextListener.DAD_DATA_SOURCE+"|"+dadName);
 	}
 
-	private static final String[][] getCgiEnv(HttpServletRequest request, String dadName, String pathInfo, String dadPath, EntityConfig dadConfig, ServletContext ctx)
+	private static String[][] getCgiEnv(HttpServletRequest request, String dadName, String pathInfo, String dadPath, EntityConfig dadConfig, ServletContext ctx)
 	throws IOException
 	{
 		HashMap<String,String> m= new HashMap<String,String>(32);
@@ -851,7 +827,7 @@ public class PLSQLGatewayServlet extends HttpServlet
         return retval;
 	}	
   
-    private static final String getRemoteUser(HttpServletRequest request)
+    private static String getRemoteUser(HttpServletRequest request)
     {
        String user= DEV_USER;
  
@@ -866,14 +842,14 @@ public class PLSQLGatewayServlet extends HttpServlet
        return user;
     }
 
-	private static final String[] getBody(HttpServletRequest request) 
+	private static String[] getBody(HttpServletRequest request)
 	throws IOException
 	{
 		ByteArrayOutputStream baos= new ByteArrayOutputStream();
 		InputStream in= request.getInputStream();
 		
 		byte[] buff= new byte[1024];
-        int count= 0;		
+        int count;
         
 	    while ((count=in.read(buff))>0)
 	    	baos.write(buff, 0, count);
@@ -885,7 +861,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 	    
 	    baos.close();
 	    
-	    String[] retval= null;
+	    String[] retval;
 	    
 	    int max_header_length= 30000; // leave 2000 bytes of overflow for multibyte chars
 	    

@@ -1,29 +1,18 @@
 package com.google.code.plsqlgateway.dad;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Types;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-
-import javax.servlet.http.HttpServletRequest;
-
-import org.apache.log4j.Logger;
-
+import com.google.code.eforceconfig.EntityConfig;
 import com.google.code.plsqlgateway.servlet.SQLInjectionException;
 import oracle.jdbc.OracleCallableStatement;
 import oracle.jdbc.OracleTypes;
 import oracle.sql.BFILE;
 import oracle.sql.BLOB;
-import com.google.code.eforceconfig.EntityConfig;
+import org.apache.log4j.Logger;
+
+import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
+import java.io.InputStream;
+import java.sql.*;
+import java.util.*;
 
 public class DADProcedureCaller
 {
@@ -44,8 +33,7 @@ public class DADProcedureCaller
 	private Enumeration parameterNames;
     private EntityConfig dadConfig;
     private String pathInfo;
-    private String calledProc;
-    private Object[] values;
+	private Object[] values;
     private int[] types;
     private String[][] cgienv;
     
@@ -78,8 +66,8 @@ public class DADProcedureCaller
 	    String sql= getSQL(flexible, alias, describe, conn);
 
         if (dadConfig.getBooleanParameter("x-sql-debug"))
-	      logger.fatal(sql);
-	    
+			logger.info(String.format("DAD execution: %s", sql.replaceAll("\\s+", " ")));
+
 	    OracleCallableStatement stmt= (OracleCallableStatement) conn.prepareCall(sql);
 
 		try
@@ -141,18 +129,12 @@ public class DADProcedureCaller
         
 	        stmt.execute();
 
-		    long after= System.currentTimeMillis();
+	        logger.info(String.format("_call: db resource %s took %dms", request.getPathInfo(), System.currentTimeMillis()-before));
 		    
-	        if (dadConfig.getBooleanParameter("timed-statistics"))
-	        	logger.fatal((after-before)+"ms: "+request.getPathInfo());
-		    
-	        	int retcode= stmt.getInt(retcodeidx);
-	    	
-	      	if (retcode==1)
-	    	     	isdocument= true;
-	      	else
-	      	if (retcode==2)
-	      		unauthorized= true;
+			int retcode= stmt.getInt(retcodeidx);
+
+            isdocument = retcode==1;
+            unauthorized = retcode==2;
 		}
         finally
         {
@@ -213,11 +195,9 @@ public class DADProcedureCaller
             
             stmt.execute();
             
-            lines= (String[])stmt.getPlsqlIndexTable(2); 
-            
-            int retval= stmt.getInt(1);
-            
-		    return retval;
+            lines= (String[])stmt.getPlsqlIndexTable(2);
+
+			return stmt.getInt(1);
         }
         finally
         {
@@ -265,21 +245,24 @@ public class DADProcedureCaller
 			    public void close() 
 			    throws IOException
 			    {
-			    	try
-			    	{
+			    	try	{
 				    	in.close();
-				    	blob.close();
 			    	}
-			    	catch (Exception ex)
-			    	{}
-			    	
-			    	
-			    	try
-			    	{
+			    	catch (Exception ex) {
+                        logger.error("getDocument: cannot close the stream");
+                    }
+
+                    try	{
+                        blob.close();
+                    }
+                    catch (Exception ex) {
+                        logger.error("getDocument: cannot close the blob");
+                    }
+
+			    	try {
 				    	stmt.close();
 			    	}
-			    	catch (Exception ex)
-			    	{
+			    	catch (Exception ex) {
 			    		throw new RuntimeException(ex);
 			    	}
 			    }
@@ -298,56 +281,50 @@ public class DADProcedureCaller
 	    	}
 	    	
 		    final OracleCallableStatement stmt2= (OracleCallableStatement) conn.prepareCall(intconfig.getSQLstmt("OWA_BFILE"));
-            
-		    stmt2.registerOutParameter(1, OracleTypes.BFILE);
-		    
-		    stmt2.execute();
-		    
-		    final BFILE bfile= stmt2.getBFILE(1);
-	    	
-		    bfile.open(BLOB.MODE_READONLY);
-		    final InputStream in= bfile.getBinaryStream(1);
+            stmt2.registerOutParameter(1, OracleTypes.BFILE);
 
-			    return new InputStream() 
-			    {
-					
-					public int read()
-					throws IOException 
-					{
-						return in.read();
-					}
-					
-					public int read(byte[] b)
-					throws IOException
-					{
-						return in.read(b);
-					}
-					
-				    public void close() 
-				    throws IOException
-				    {
-				    	try
-				    	{
-					    	in.close();
-					    	bfile.close();
-				    	}
-				    	catch (Exception ex)
-				    	{}
-				    	
-				    	
-				    	try
-				    	{
-				    		stmt2.close();
-				    	}
-				    	catch (Exception ex)
-				    	{
-				    		throw new RuntimeException(ex);
-				    	}
-				    }
-	
-				};
-		    
-	    }
+            stmt2.execute();
+
+            final BFILE bfile = stmt2.getBFILE(1);
+
+            bfile.open(BLOB.MODE_READONLY);
+            final InputStream in = bfile.getBinaryStream(1);
+
+            return new InputStream() {
+
+                public int read()
+                        throws IOException {
+                    return in.read();
+                }
+
+                public int read(byte[] b)
+                        throws IOException {
+                    return in.read(b);
+                }
+
+                public void close()
+                        throws IOException {
+                    try {
+                        in.close();
+                    } catch (Exception ex) {
+                        logger.error("getDocument: cannot close input stream");
+                    }
+
+                    try {
+                        bfile.close();
+                    } catch (Exception ex) {
+                        logger.error("getDocument: cannot close the blob");
+                    }
+
+                    try {
+                        stmt2.close();
+                    } catch (Exception ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+
+            };
+        }
 	}
 	
 	public String[] getLines()
@@ -361,25 +338,26 @@ public class DADProcedureCaller
 	{
 		String sqlStmt= intconfig.getSQLstmt("OWA_CALL");
 		
-		String procedure= null;
+		String procedure;
 		
 		String pathAlias= dadConfig.getParameter("path-alias");
-		
+
+		String calledProc;
 		if (alias)
 		{
-			calledProc= dadConfig.getParameter("path-alias-procedure");
-			procedure= calledProc+"(?"+(dadConfig.getBooleanParameter("x-path-alias-flexible") ? ",?,?" : "")+")";
+			calledProc = dadConfig.getParameter("path-alias-procedure");
+			procedure= calledProc +"(?"+(dadConfig.getBooleanParameter("x-path-alias-flexible") ? ",?,?" : "")+")";
 		}
 		else
 		if (flexible)
 		{
-			calledProc= sqlInjectionIdentifier(pathInfo.substring(2));
-		    procedure= calledProc+"(?,?)";
+			calledProc = sqlInjectionIdentifier(pathInfo.substring(2));
+		    procedure= calledProc +"(?,?)";
 		}
 		else
 		{
 			procedure= sqlInjectionIdentifier(pathInfo.substring(1));	
-			calledProc= procedure;
+			calledProc = procedure;
 			
 			Map<String,Integer> parameterTypes= describeProcedure(calledProc.toUpperCase(),describe,conn);
 
@@ -411,7 +389,7 @@ public class DADProcedureCaller
 
 		sqlStmt= sqlStmt.replaceFirst("#request-validation-function#", 
 				   (requestValidationFunction!=null ? 
-						   requestValidationFunction+"('"+calledProc+"')" : "true"));
+						   requestValidationFunction+"('"+ calledProc +"')" : "true"));
 
 		String beforeProcedure= dadConfig.getParameter("before-procedure");
 
@@ -442,7 +420,7 @@ public class DADProcedureCaller
 	    * 
 	    */
 	
-	   if (!describe||!dadConfig.getBooleanParameter("describe-procedure"))
+	   if (!describe || !dadConfig.getBooleanParameter("describe-procedure"))
 		   return EMPTY_DESCRIBE_MAP;
 		   
        String[] parts= calledProc.split("\\.");
@@ -459,7 +437,7 @@ public class DADProcedureCaller
     	   else
     	   {
     		   proc= translateSynonym(conn,parts);
-    		   return describeProcedure(proc, describe, conn);
+    		   return describeProcedure(proc, true, conn);
     	   }
        }
        else
@@ -486,7 +464,7 @@ public class DADProcedureCaller
         	   else
         	   {
         		   proc= translateSynonym(conn,parts);
-        		   return describeProcedure(proc, describe, conn);
+        		   return describeProcedure(proc, true, conn);
         	   }
        	   }
        		         	      
@@ -506,7 +484,7 @@ public class DADProcedureCaller
     	   else
     	   {
     		   proc= translateSynonym(conn,parts);
-    		   return describeProcedure(proc, describe, conn);        		   
+    		   return describeProcedure(proc, true, conn);
     	   }
        }
        else
@@ -516,7 +494,7 @@ public class DADProcedureCaller
 	private boolean existsProcedure(String schema, String pkg, String proc, Connection conn) 
 	throws Exception
 	{
-		PreparedStatement stmt= null;
+		PreparedStatement stmt;
 		
 		if (schema==null&&pkg==null)
 		{
@@ -558,48 +536,42 @@ public class DADProcedureCaller
 	private Map<String,Integer> getProcedureColumns(String schema, String pkg, String proc, Connection conn) 
 	throws Exception
 	{
-		PreparedStatement stmt= null;
-		
-		if (schema==null&&pkg==null)
-		{
-           stmt= conn.prepareStatement(intconfig.getSQLstmt("PROC_COLUMNS"));
-           stmt.setString(1, proc);
-		}
-		else
-		if (schema==null)
-		{
-           stmt= conn.prepareStatement(intconfig.getSQLstmt("PKG_PROC_COLUMNS"));
-           stmt.setString(1, proc);
-           stmt.setString(2, pkg);
-		}
-		else
-		if (pkg==null)
-		{
-           stmt= conn.prepareStatement(intconfig.getSQLstmt("SCHEMA_PROC_COLUMNS"));
-           stmt.setString(1, proc);
-           stmt.setString(2, schema);
-		}
-		else
-		{
-           stmt= conn.prepareStatement(intconfig.getSQLstmt("SCHEMA_PKG_PROC_COLUMNS"));
-           stmt.setString(1, proc);
-           stmt.setString(2, pkg);
-           stmt.setString(3, schema);
-		}
-		
-		ResultSet rs= stmt.executeQuery();
-		Map<String,Integer> descriptor= new HashMap<String, Integer>();
-		
-		while (rs.next())
-		{
-		  String dataType= rs.getString(2);
-		  descriptor.put(rs.getString(1), 
-				         ("PL/SQL TABLE".equals(dataType) ? Types.OTHER : Types.VARCHAR));
-		}
-		
-		rs.close();
-		stmt.close();
-		
+		PreparedStatement stmt;
+        Map<String, Integer> descriptor = new HashMap<String, Integer>();
+
+        if (schema == null && pkg == null) {
+            stmt = conn.prepareStatement(intconfig.getSQLstmt("PROC_COLUMNS"));
+            stmt.setString(1, proc);
+        } else if (schema == null) {
+            stmt = conn.prepareStatement(intconfig.getSQLstmt("PKG_PROC_COLUMNS"));
+            stmt.setString(1, proc);
+            stmt.setString(2, pkg);
+        } else if (pkg == null) {
+            stmt = conn.prepareStatement(intconfig.getSQLstmt("SCHEMA_PROC_COLUMNS"));
+            stmt.setString(1, proc);
+            stmt.setString(2, schema);
+        } else {
+            stmt = conn.prepareStatement(intconfig.getSQLstmt("SCHEMA_PKG_PROC_COLUMNS"));
+            stmt.setString(1, proc);
+            stmt.setString(2, pkg);
+            stmt.setString(3, schema);
+        }
+
+        try {
+            ResultSet rs = stmt.executeQuery();
+            try {
+                while (rs.next()) {
+                    String dataType = rs.getString(2);
+                    descriptor.put(rs.getString(1),
+                            ("PL/SQL TABLE".equals(dataType) ? Types.OTHER : Types.VARCHAR));
+                }
+            } finally {
+                rs.close();
+            }
+        } finally {
+            stmt.close();
+        }
+
 		return descriptor;
 	}
 
@@ -630,10 +602,8 @@ public class DADProcedureCaller
             stmt.registerOutParameter(2, OracleTypes.VARCHAR);
             
             stmt.execute();
-            
-            String retval= stmt.getString(2); 
-            
-            return retval;
+
+			return stmt.getString(2);
         }
         finally
         {

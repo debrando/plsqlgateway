@@ -29,6 +29,7 @@ import java.io.*;
 import java.sql.*;
 import java.util.*;
 import java.util.Map.Entry;
+import java.net.SocketException;
 
 /**
  * Servlet implementation class PLSQLGatewayServlet
@@ -167,6 +168,7 @@ public class PLSQLGatewayServlet extends HttpServlet
 		}
 		
 		OracleConnection conn= null;
+        OutputStream out= null;
 	    PrintWriter pw= null;
 		
 		try 
@@ -228,91 +230,95 @@ public class PLSQLGatewayServlet extends HttpServlet
 			
 			if (!caller.isAuthorized())
                 logger.info("doGet: NOT AUTHORIZED by request-validation-function");
-			
-			OutputStream out= null;
+
 			boolean body= false;
 
-            try {
-                while (caller.fetch(conn) > 0) {
-                    String[] lines = caller.getLines();
-                    String lastLine = "";
+            while (caller.fetch(conn) > 0) {
+                String[] lines = caller.getLines();
+                String lastLine = "";
 
-                    for (String line : lines)
-                        if (body)
-                            pw.write(line);
-                        else {
-                            if (line.equals("\n")) {
-                                body = true;
-                                response.setCharacterEncoding("UTF-8");
-                                out = response.getOutputStream();
-                                pw = new PrintWriter(out);
-                            } else {
-                                if (line.endsWith("\n")) {
-                                    lastLine += line;
-                                    String[] header = lastLine.split("\\: ");
+                for (String line : lines)
+                    if (body)
+                        pw.write(line);
+                    else {
+                        if (line.equals("\n")) {
+                            body = true;
+                            response.setCharacterEncoding("UTF-8");
+                            out = response.getOutputStream();
+                            pw = new PrintWriter(out);
+                        } else {
+                            if (line.endsWith("\n")) {
+                                lastLine += line;
+                                String[] header = lastLine.split("\\: ");
 
-                                    if (header.length == 2) {
-                                        response.addHeader(header[0], header[1].substring(0, header[1].length() - 1));
+                                if (header.length == 2) {
+                                    response.addHeader(header[0], header[1].substring(0, header[1].length() - 1));
 
-                                        if (header[0].equals("Location"))
-                                            response.setStatus(HttpServletResponse.SC_FOUND);
-                                        else if (header[0].equals("Status")) {
-                                            int pos = header[1].indexOf(" ");
-                                            String code = (pos == -1 ? header[1] : header[1].substring(0, pos));
-                                            response.setStatus(Integer.parseInt(code));
-                                        }
-
-                                        lastLine = "";
+                                    if (header[0].equals("Location")) {
+                                        response.setStatus(HttpServletResponse.SC_FOUND);
+                                    } else if (header[0].equals("Status")) {
+                                        int pos = header[1].indexOf(" ");
+                                        String code = (pos == -1 ? header[1] : header[1].substring(0, pos));
+                                        response.setStatus(Integer.parseInt(code));
                                     }
+                                    lastLine = "";
+                                }
 
-                                } else
-                                    lastLine += line;
-
+                            } else {
+                                lastLine += line;
                             }
                         }
+                    }
 
-                    if (pw != null) pw.flush();
-                }
-
-                if (out != null && caller.isDocument()) {
-                    InputStream in = caller.getDocument(conn);
-                    byte[] buff = new byte[response.getBufferSize()];
-                    int count;
-
-                    while ((count = in.read(buff)) > 0)
-                        out.write(buff, 0, count);
-
-                    in.close();
-                }
-            } finally {
-                if (out != null) {
-                    out.flush();
-                    out.close();
-                }
+                if (pw != null && !response.isCommitted())
+                    pw.flush();
             }
-			
+
+            if (out != null && caller.isDocument()) {
+                InputStream in = caller.getDocument(conn);
+                byte[] buff = new byte[response.getBufferSize()];
+                int count;
+
+                while ((count = in.read(buff)) > 0)
+                    out.write(buff, 0, count);
+
+                in.close();
+            }
 		} 
 		catch (SQLInjectionException sie)
 		{
 			logger.error(String.format("doGet: SQLInjection on %s: %s", request.getRequestURI(), sie.getMessage()));
 			response.sendError(HttpServletResponse.SC_BAD_REQUEST);
 		}
+        catch (java.io.IOException e) {
+            if (e.getCause() instanceof SocketException) {
+                logger.info("doGet: error uri " + e.getMessage());
+            } else {
+                logger.error("doGet: error uri " + request.getRequestURI(), e);
+            }
+            throw new ServletException(e);
+        }
 		catch (Exception e)
 		{
 			logger.error("doGet: error uri "+request.getRequestURI(), e);
             
-            if (dadConfig.getBooleanParameter("show-errors"))
+            if (dadConfig.getBooleanParameter("show-errors") && !response.isCommitted())
             {
-               if (pw==null)
-                 pw= response.getWriter();
-
+               if (pw==null) {
+                   pw = response.getWriter();
+               }
                e.printStackTrace(pw);
-               pw.flush();
             }
-            else 
-			  throw new ServletException(e);
+            else {
+                throw new ServletException(e);
+            }
 		}
 		finally {
+            if (pw != null) {
+                pw.close();
+            } else if (out != null) {
+                out.close();
+            }
             closeConnection(conn, dadConfig, "doGet");
 		}
 
